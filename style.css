@@ -1,0 +1,24 @@
+#grid-container {
+    display: grid;
+    grid-template-columns: repeat(8, 50px);
+    grid-template-rows: repeat(8, 50px);
+    gap: 5px;
+}
+
+#grid-container button {
+    width: 50px;
+    height: 50px;
+    background-color: grey;
+}
+
+#grid-container button.clicked {
+    background-color: red;
+}
+
+#orientation-controls {
+    margin-bottom: 20px;
+}
+
+#clicked-buttons {
+    margin-top: 20px;
+}

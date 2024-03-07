@@ -9,7 +9,7 @@ Accessible via [this link](https://technical-1.github.io/NeoMatrix-FrameCreator/
 ## Features
 
 - **Interactive 8x8 Matrix Grid**: A clickable grid that visually represents the matrix, allowing for intuitive design and planning.
-- **Dynamic Orientation Adjustment**: Easily adjust the "row 0" orientation to create frames in every orientation.
+- **Dynamic Orientation Adjustment**: Easily adjust the origin location to create frames in every orientation.
 - **Toggle Functionality**: Buttons can be toggled on or off, with their coordinates dynamically added or removed from the array.
 - **Clear and Reset**: A simple way to clear all selections and start fresh with a single click.
 

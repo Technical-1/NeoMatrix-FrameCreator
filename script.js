@@ -135,4 +135,62 @@ function getButtonCoordinates(index) {
     return {row, col};
 }
 
+/**
+ * Copies the current coordinates to the clipboard in JSON format.
+ */
+function copyCoordinates() {
+    const data = {
+        coordinates: clickedCoordinates
+    };
+
+    const jsonStr = JSON.stringify(data, null, 2);
+
+    navigator.clipboard.writeText(jsonStr).then(() => {
+        alert("Coordinates copied to clipboard!");
+    }).catch((err) => {
+        console.error("Failed to copy: ", err);
+    });
+}
+
+/**
+ * Prompts a file download in JSON format (coordinates.json).
+ */
+function downloadJSON() {
+    const data = {
+        coordinates: clickedCoordinates
+    };
+    const jsonStr = JSON.stringify(data, null, 2);
+
+    // Create a Blob of the data
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    // Create a temporary link to prompt download
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "coordinates.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+/**
+ * CSV download (coordinates.csv).
+ */
+function downloadCSV() {
+    // Convert the array of {row, col} to CSV lines
+    const csvLines = clickedCoordinates.map(coord => `${coord.row},${coord.col}`);
+    const csvContent = csvLines.join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "coordinates.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 createGrid();

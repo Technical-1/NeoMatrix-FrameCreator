@@ -9,13 +9,16 @@
     width: 50px;
     height: 50px;
     background-color: grey;
+    cursor: pointer;
+    border: 1px solid #ccc;
 }
 
 #grid-container button.clicked {
     background-color: red;
 }
 
-#orientation-controls {
+#orientation-controls,
+#controls {
     margin-bottom: 20px;
 }
 

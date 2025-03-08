@@ -1,12 +1,14 @@
+const GRID_SIZE = 8;
+
 let orientation = 'top-left';
 
 function createGrid() {
     const container = document.getElementById('grid-container');
     container.innerHTML = '';
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
         const button = document.createElement('button');
         button.textContent = " ";
-        button.className = ''; 
+        button.className = ""; 
         button.addEventListener('click', () => buttonClicked(button, i));
         container.appendChild(button);
     }
@@ -14,9 +16,9 @@ function createGrid() {
 
 function updateOrientation(newOrientation) {
     orientation = newOrientation;
-    clearClickedButtons();
     console.log(`Orientation changed to: ${orientation}`);
-}
+    clearClickedButtons();
+  }
 
 function buttonClicked(button, index) {
     const coordinates = getButtonCoordinates(index);
@@ -53,7 +55,7 @@ function clearClickedButtons() {
 }
 
 function getButtonCoordinates(index) {
-    const rowSize = 8;
+    const rowSize = GRID_SIZE;
     let row, col;
     switch (orientation) {
         case 'top-left':
@@ -79,5 +81,4 @@ function getButtonCoordinates(index) {
     return `(${row}, ${col})`;
 }
 
-// Initialize the grid
 createGrid();

@@ -46,11 +46,30 @@
             <button id="btn-fmt" onclick="clearClickedButtons()">Clear</button>
         </div>
     </div>
+    
     <div id="controls-bar">
+        <!-- Frame Navigation & Creation -->
+        <div id="frame-controls">
+            <button onclick="newFrame()">New Frame</button>
+            <button onclick="prevFrame()">Previous Frame</button>
+            <button onclick="nextFrame()">Next Frame</button>
+            <span id="frame-indicator"></span>
+        </div>
+        <!-- Scrolling / Animation Controls -->
+        <div id="controls-bar">
+            <div id="animation-controls">
+                <label for="delay-input">Animation Delay (ms):</label>
+                <input type="number" id="delay-input" value="200" min="0" />
+                <button onclick="startScroll()">Play</button>
+                <button onclick="stopScroll()">Stop</button>
+            </div>
+        </div>
+
+        <!-- Export Buttons -->
         <div id="export-controls">
             <button onclick="copyCoordinates()">Copy JSON</button>
             <button onclick="downloadJSON()">Download JSON</button>
-            <button onclick="downloadCSV()">Download CSV</button>
+            <button onclick="downloadRustFile()">Download Rust Code</button>
         </div>
     </div>
 

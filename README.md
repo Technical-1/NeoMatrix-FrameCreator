@@ -108,7 +108,7 @@ impl NmScroll {
     pub fn next(&mut self) {
         self.clear();
 
-        // Example frame data (could be auto-generated from the tool)
+        // Example frame data
         let frame_1 = [
             (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6),
             (1, 6), (2, 6), (4, 0), (5, 0), (6, 0), (7, 1),

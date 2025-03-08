@@ -3,41 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <title>Configurable Grid Matrix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Orientation Buttons -->
-    <div id="orientation-controls">
-        <button onclick="updateOrientation('top-left')">Top Left</button>
-        <button onclick="updateOrientation('top-right')">Top Right</button>
-        <button onclick="updateOrientation('bottom-left')">Bottom Left</button>
-        <button onclick="updateOrientation('bottom-right')">Bottom Right</button>
+    <!-- Instruction / Info Panel -->
+    <div id="info-panel">
+        <h1>NeoMatrix Frame Creator</h1>
+        <p>
+            Welcome to the NeoMatrix Frame Creator! Use this tool to design LED matrix frames for your animations.
+            Simply <strong>click on any cell</strong> in the grid to toggle it on/off. 
+        </p>
+        <ul>
+            <li><strong>Orientation:</strong> Switch between different origin corners.</li>
+            <li><strong>Grid Size:</strong> Adjust the grid dimensions.</li>
+        </ul>
+        <p>
+            This was originally designed for the final project in CEN4907C, <b>Computer Engineering Design 1</b>, 
+            at the University of Florida on the WS2812 LED matrix.
+        </p>
     </div>
 
-    <!-- Export Controls -->
-    <div id="export-controls">
-        <button onclick="copyCoordinates()">Copy JSON</button>
-        <button onclick="downloadJSON()">Download JSON</button>
-        <button onclick="downloadCSV()">Download CSV</button>
+    <div id="controls-bar">
+        <div id="orientation-controls">
+            <button onclick="updateOrientation('top-left')">Top Left</button>
+            <button onclick="updateOrientation('top-right')">Top Right</button>
+            <button onclick="updateOrientation('bottom-left')">Bottom Left</button>
+            <button onclick="updateOrientation('bottom-right')">Bottom Right</button>
+        </div>
+
+        <div id="grid-controls">
+            <label for="grid-size-input">Grid Size:</label>
+            <input 
+                type="number" 
+                id="grid-size-input" 
+                min="1" 
+                max="64"
+                value="8"
+            />
+            <button id="btn-fmt" onclick="updateGridSize()">Set Grid Size</button>
+            <button id="btn-fmt" onclick="clearClickedButtons()">Clear</button>
+        </div>
+    </div>
+    <div id="controls-bar">
+        <div id="export-controls">
+            <button onclick="copyCoordinates()">Copy JSON</button>
+            <button onclick="downloadJSON()">Download JSON</button>
+            <button onclick="downloadCSV()">Download CSV</button>
+        </div>
     </div>
 
-    <!-- Grid Size + Clear Controls -->
-    <div id="controls">
-        <label for="grid-size-input">Grid Size:</label>
-        <input 
-            type="number" 
-            id="grid-size-input" 
-            min="1" 
-            max="64"
-            value="8"
-        />
-        <button onclick="updateGridSize()">Set Grid Size</button>
-        <button onclick="clearClickedButtons()">Clear</button>
+    <!-- Centered Grid Wrapper -->
+    <div id="grid-wrapper">
+        <div id="grid-container"></div>
     </div>
 
-    <!-- Dynamic Grid Container and Output -->
-    <div id="grid-container"></div>
     <div id="clicked-buttons"></div>
 
     <script src="script.js"></script>

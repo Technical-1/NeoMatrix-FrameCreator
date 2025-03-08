@@ -22,6 +22,35 @@ function createGrid() {
         button.addEventListener("click", () => buttonClicked(button, i));
         container.appendChild(button);
     }
+    highlightCornerButton();
+}
+
+/**
+ * Updates the dot/marker for whichever button is row=0, col=0
+ * in the current orientation.
+ */
+function highlightCornerButton() {
+    // Remove old corner-dot markers from all buttons
+    const allButtons = document.querySelectorAll("#grid-container button");
+    allButtons.forEach(btn => {
+        btn.classList.remove("corner-dot");
+        if (btn.textContent === "•") {
+            btn.textContent = " ";
+        }
+    });
+
+    // Find the button whose getButtonCoordinates(index) => (row=0, col=0)
+    const totalCells = GRID_SIZE * GRID_SIZE;
+    for (let index = 0; index < totalCells; index++) {
+        const coords = getButtonCoordinates(index);
+        if (coords.row === 0 && coords.col === 0) {
+            // This is our corner
+            const cornerButton = allButtons[index];
+            cornerButton.classList.add("corner-dot");
+            cornerButton.textContent = "•"; // or “O” or something else
+            break;
+        }
+    }
 }
 
 /**
@@ -50,6 +79,7 @@ function updateOrientation(newOrientation) {
     gridOrientation = newOrientation;
     console.log(`Orientation changed to: ${gridOrientation}`);
     clearClickedButtons();
+    createGrid();
   }
 
 /**

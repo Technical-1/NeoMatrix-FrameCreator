@@ -1,6 +1,6 @@
 const GRID_SIZE = 8;
 
-let orientation = 'top-left';
+let gridOrientation = 'top-left';
 
 function createGrid() {
     const container = document.getElementById('grid-container');
@@ -15,8 +15,8 @@ function createGrid() {
 }
 
 function updateOrientation(newOrientation) {
-    orientation = newOrientation;
-    console.log(`Orientation changed to: ${orientation}`);
+    gridOrientation = newOrientation;
+    console.log(`Orientation changed to: ${gridOrientation}`);
     clearClickedButtons();
   }
 
@@ -57,7 +57,7 @@ function clearClickedButtons() {
 function getButtonCoordinates(index) {
     const rowSize = GRID_SIZE;
     let row, col;
-    switch (orientation) {
+    switch (gridOrientation) {
         case 'top-left':
             row = Math.floor(index / rowSize);
             col = index % rowSize;

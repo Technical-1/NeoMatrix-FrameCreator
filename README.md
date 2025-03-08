@@ -2,27 +2,67 @@
 
 ## About The Project
 
-The NeoMatrix Frame Creator is a web-based tool designed to assist creators in developing artwork frames for use in animations, specifically tailored for projects involving NeoMatrix and WS2812 LED matrices. This interactive tool simplifies the process of visualizing and planning the layout of LED animations, making it an invaluable resource for artists and developers working with LED matrix projects.
+The **NeoMatrix Frame Creator** is a web-based tool designed to help developers and artists craft LED matrix frames for **animations** on projects that use NeoMatrix and WS2812 (RGB) LEDs. The tool provides an interactive grid and straightforward controls to visualize each frame, experiment with orientation and sizes, and ultimately export your designs into usable code. This was originally designed for the final project in the University of Florida class CEN4907C, Computer Engineering Design 1, on the WS2812 LED matrix.
 
-Accessible via [this link](https://technical-1.github.io/NeoMatrix-FrameCreator/), this tool provides a user-friendly interface for creating and experimenting with different frame designs that can be directly implemented in LED animations.
+[**Try it out here**](https://technical-1.github.io/NeoMatrix-FrameCreator/)
+
+---
 
 ## Features
 
-- **Interactive 8x8 Matrix Grid**: A clickable grid that visually represents the matrix, allowing for intuitive design and planning.
-- **Dynamic Orientation Adjustment**: Easily adjust the origin location to create frames in every orientation.
-- **Toggle Functionality**: Buttons can be toggled on or off, with their coordinates dynamically added or removed from the array.
-- **Clear and Reset**: A simple way to clear all selections and start fresh with a single click.
+- **Dynamic Grid Size**  
+  Easily change the grid dimensions to match your LED matrix.
+
+- **Multiple Frames**  
+  Create multiple frames and seamlessly switch between them. Perfect for complex animations that require more than a single frame.
+
+- **Orientation Adjustment**  
+  Instantly flip or rotate the origin corner (top-left, top-right, bottom-left, bottom-right) to match your physical matrix wiring.
+
+- **Interactive Click/Tap**  
+  Each grid cell can be toggled on or off with a simple click. The tool records your selections and displays the coordinates in real-time.
+
+- **Clear and Reset**  
+  One-click clear function to reset any single frame without losing others.
+
+- **Export Coordinates**  
+  - **JSON/CSV**: Download your current frames as structured data for easy parsing in other applications.  
+  - **Rust Code**: Generate a `.rs` file containing statically defined arrays for each frame and a scrolling implementation (optional), ready to integrate with your NeoMatrix Rust project.
+
+- **Scrolling Preview**  
+  Simulate a scrolling animation to see how your frames will look on an actual LED matrix. Adjust the delay (speed) and observe the result in real-time.
+
+---
 
 ## How to Use
 
-1. **Access the Tool**: Navigate to [NeoMatrix Frame Creator](https://technical-1.github.io/NeoMatrix-FrameCreator/) to begin creating your frame.
-2. **Create Your Design**: Adjust the orientation as needed to match your project's specifications. Click on the grid to enable or disable single LEDs from your frame.
-3. **View Coordinates**: Use the displayed coordinates to copy and paste into your code and implement frame integration.
-4. **Reset as Needed**: Click the "Clear" button to remove all current selections and start a new design.
+1. **Open the Tool**  
+   Go to [**NeoMatrix Frame Creator**](https://technical-1.github.io/NeoMatrix-FrameCreator/) in your browser.
 
-## Example Usage
+2. **Set Up Your Grid**  
+   - Choose an initial **Grid Size** (e.g., 8 for an 8×8 matrix).  
+   - Pick your **Orientation** (top-left, top-right, etc.).
 
-The following Rust code example demonstrates how you might utilize the coordinates and design principles from the NeoMatrix Frame Creator in an animation project for NeoMatrix WS2812 LEDs.
+3. **Create Frames**  
+   - Click **New Frame** to start a fresh frame.  
+   - Toggle cells on/off to design your LED pattern for that frame.  
+   - Switch to **Next Frame** or **Previous Frame** to edit others in the sequence.
+
+4. **Scrolling Preview**  
+   - Use the **Animation Delay** input to set how quickly the frames scroll.  
+   - Click **Play** to watch your frames scroll across the grid.  
+   - Click **Stop** to end the preview.
+
+5. **Export Your Work**  
+   - **Copy JSON**: Copies all frames (coordinates and names) to your clipboard in JSON format.  
+   - **Download JSON** / **Download CSV**: Saves your frames to a file for easy integration in other applications.  
+   - **Download Rust Code**: Automatically generates a Rust source file (`.rs`) with each frame’s coordinates plus a basic scrolling function (optional). Ideal for embedding into NeoMatrix + WS2812 projects.
+
+---
+
+## Example Usage (Rust)
+
+Below is a Rust snippet showing how you might integrate frames (from a downloaded `.rs` file or JSON) into a NeoMatrix animation:
 
 ```rust
 pub struct NmScroll {
@@ -68,23 +108,22 @@ impl NmScroll {
     pub fn next(&mut self) {
         self.clear();
 
-        let letter_j = [
-            (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (1, 6), (2, 6), (3, 6), (4, 6), (5, 6), (4, 0), (5, 0), (6, 0), (7, 1),
+        // Example frame data (could be auto-generated from the tool)
+        let frame_1 = [
+            (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6),
+            (1, 6), (2, 6), (4, 0), (5, 0), (6, 0), (7, 1),
         ];
-        // Additional letter definitions
 
-        let offset = self.frame / 2 as isize;
+        let offset = self.frame / 2;
+        self.draw_letter(&frame_1, offset - 7);
 
-        self.draw_letter(&letter_j, offset - 7);
-        // Additional draw_letter calls
+        // Additional frames / logic
 
         let spacing = 2;
-        let letter_size = 4;
-        let num_letters = 1;
-        let total_length = num_letters * letter_size + 1 * spacing;
+        let frame_width = 4;
+        let total_length = frame_width + spacing;
         let scroll_length = WIDTH as isize + total_length as isize;
 
         self.frame = (self.frame + 1) % (scroll_length * 2);
     }
 }
-'''

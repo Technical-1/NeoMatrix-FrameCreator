@@ -1,7 +1,5 @@
 #grid-container {
     display: grid;
-    grid-template-columns: repeat(8, 50px);
-    grid-template-rows: repeat(8, 50px);
     gap: 5px;
 }
 

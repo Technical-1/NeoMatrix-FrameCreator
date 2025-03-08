@@ -1,6 +1,7 @@
 let GRID_SIZE = 8;
 
 let gridOrientation = 'top-left';
+let clickedCoordinates = [];
 
 /**
  * Dynamically creates an NxN grid of buttons (N = GRID_SIZE).
@@ -8,7 +9,7 @@ let gridOrientation = 'top-left';
  */
 function createGrid() {
     const container = document.getElementById("grid-container");
-    container.innerHTML = "";  // Clear any existing grid
+    container.innerHTML = "";
 
     // Dynamically set the grid columns and rows based on GRID_SIZE
     container.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 50px)`;
@@ -52,47 +53,55 @@ function updateOrientation(newOrientation) {
   }
 
 /**
- * Handles button clicks in the grid. Toggles the "clicked" class and
- * updates the coordinates display.
+ * Handles a click on a specific button in the grid.
+ * Toggles the coordinate in our in-memory array and updates the UI.
  */
 function buttonClicked(button, index) {
-    const coordinates = getButtonCoordinates(index);
+    const { row, col } = getButtonCoordinates(index);
 
-    if (button.classList.contains('clicked')) {
-        button.classList.remove('clicked');
-        removeCoordinates(`${coordinates}`);
+    const existingIndex = clickedCoordinates.findIndex(
+        (coord) => coord.row === row && coord.col === col
+    );
+
+    if (existingIndex >= 0) {
+        clickedCoordinates.splice(existingIndex, 1);
+        button.classList.remove("clicked");
     } else {
-        button.classList.add('clicked');
-        console.log(`Button coordinates: ${coordinates}`);
-        
-        document.getElementById('clicked-buttons').textContent += `${coordinates}, `;
+        clickedCoordinates.push({ row, col });
+        button.classList.add("clicked");
     }
-}
 
-/**
- * Removes a given coordinate string (e.g., "(3, 5)") from the display.
- */
-function removeCoordinates(coordinatesToRemove) {
-    const clickedButtonsDisplay = document.getElementById('clicked-buttons');
-    let currentCoordinates = clickedButtonsDisplay.textContent.trim();
-
-    const regex = new RegExp(`\\(${coordinatesToRemove}\\),\\s?`, 'g');
-
-    clickedButtonsDisplay.textContent = currentCoordinates.replace(regex, '').trim();
+    updateCoordinatesDisplay();
 }
 
 /**
  * Clears any clicked buttons in the grid and resets the displayed coordinates.
  */
 function clearClickedButtons() {
-    document.getElementById('clicked-buttons').textContent = "";
+    clickedCoordinates = [];
     
     const buttons = document.querySelectorAll('#grid-container button');
     buttons.forEach(button => {
         button.classList.remove('clicked');
     });
+
+    updateCoordinatesDisplay();
 }
 
+/**
+ * Refreshes the #clicked-buttons text content based on the clickedCoordinates array.
+ */
+function updateCoordinatesDisplay() {
+    const display = document.getElementById("clicked-buttons");
+
+    // Convert each { row, col } object to "(row, col)" string
+    const coordsStrings = clickedCoordinates.map(
+        (coord) => `(${coord.row}, ${coord.col})`
+    );
+
+    // Join them with a comma + space
+    display.textContent = coordsStrings.join(", ");
+}
 
 function getButtonCoordinates(index) {
     const rowSize = GRID_SIZE;
@@ -102,23 +111,28 @@ function getButtonCoordinates(index) {
             row = Math.floor(index / rowSize);
             col = index % rowSize;
             break;
-		case 'top-right':
-            row = 7 - (index % rowSize);
+        case "top-right":
+            row = (rowSize - 1) - (index % rowSize);
             col = Math.floor(index / rowSize);
             break;
-        case 'bottom-left':
+
+        case "bottom-left":
             row = index % rowSize;
-            col = 7 - Math.floor(index / rowSize);
+            col = (rowSize - 1) - Math.floor(index / rowSize);
             break;
-        case 'bottom-right':
-            row = 7 - Math.floor(index / rowSize);
-            col = 7 - (index % rowSize);
+
+        case "bottom-right":
+            row = (rowSize - 1) - Math.floor(index / rowSize);
+            col = (rowSize - 1) - (index % rowSize);
             break;
+
         default:
             row = Math.floor(index / rowSize);
             col = index % rowSize;
+            break;
     }
-    return `(${row}, ${col})`;
+
+    return {row, col};
 }
 
 createGrid();

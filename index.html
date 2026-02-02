@@ -2,83 +2,185 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Configurable Grid Matrix</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeoMatrix Frame Creator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="description" content="Visual editor for designing LED matrix animations for WS2812 NeoPixel displays">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Instruction / Info Panel -->
-    <div id="info-panel">
-        <h1>NeoMatrix Frame Creator</h1>
-        <p>
-            Welcome to the NeoMatrix Frame Creator! Use this tool to design LED matrix frames for your animations.
-            Simply <strong>click on any cell</strong> in the grid to toggle it on/off. 
-        </p>
-        <ul>
-            <li><strong>Orientation:</strong> Switch between different origin corners.</li>
-            <li><strong>Grid Size:</strong> Adjust the grid dimensions.</li>
-        </ul>
-        <p>
-            This was originally designed for the final project in the University of Florida class CEN4907C, <b>Computer Engineering Design 1</b>, 
-            on the WS2812 LED matrix.
-        </p>
-    </div>
-
-    <div id="controls-bar">
-        <div id="orientation-controls">
-            <button onclick="updateOrientation('top-left')">Top Left</button>
-            <button onclick="updateOrientation('top-right')">Top Right</button>
-            <button onclick="updateOrientation('bottom-left')">Bottom Left</button>
-            <button onclick="updateOrientation('bottom-right')">Bottom Right</button>
+    <!-- Header with collapsible info -->
+    <header class="site-header">
+        <div class="header-main">
+            <h1 class="logo">
+                <span class="logo-icon" aria-hidden="true"></span>
+                NeoMatrix
+            </h1>
+            <button class="info-toggle" id="info-toggle" aria-expanded="false" aria-controls="info-panel">
+                <span class="sr-only">Toggle help panel</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4M12 8h.01"/>
+                </svg>
+            </button>
         </div>
 
-        <div id="grid-controls">
-            <label for="grid-size-input">Grid Size:</label>
-            <input 
-                type="number" 
-                id="grid-size-input" 
-                min="1" 
-                max="64"
-                value="8"
-            />
-            <button id="btn-fmt" onclick="updateGridSize()">Set Grid Size</button>
-            <button id="btn-fmt" onclick="clearClickedButtons()">Clear</button>
+        <div class="info-panel" id="info-panel" hidden>
+            <p>Design LED matrix frames for your <strong>WS2812 NeoPixel</strong> animations. Click cells to toggle pixels, manage frames, preview scrolling, and export to JSON or Rust code.</p>
+            <div class="info-meta">
+                <span>Originally built for UF CEN4907C</span>
+                <a href="https://github.com/Technical-1/NeoMatrix-FrameCreator" target="_blank" rel="noopener">GitHub</a>
+            </div>
         </div>
-    </div>
-    
-    <div id="controls-bar">
-        <!-- Frame Navigation & Creation -->
-        <div id="frame-controls">
-            <button onclick="newFrame()">New Frame</button>
-            <button onclick="prevFrame()">Previous Frame</button>
-            <button onclick="nextFrame()">Next Frame</button>
-            <span id="frame-indicator"></span>
-        </div>
+    </header>
 
-        <!-- Scrolling / Animation Controls -->
-        <div id="animation-controls">
-            <label for="delay-input">Animation Delay (ms):</label>
-            <input type="number" id="delay-input" value="200" min="0" />
-            <button onclick="startScroll()">Play</button>
-            <button onclick="stopScroll()">Stop</button>
-        </div>
-    </div>
-    <div id="controls-bar">
-        <!-- Export Buttons -->
-        <div id="export-controls">
-            <button onclick="copyCoordinates()">Copy JSON</button>
-            <button onclick="downloadJSON()">Download JSON</button>
-            <button onclick="downloadRustFile()">Download Rust Code</button>
-        </div>
-    </div>
+    <main class="app-main">
+        <!-- Primary Toolbar -->
+        <nav class="toolbar" role="toolbar" aria-label="Grid controls">
+            <!-- Grid Settings Group -->
+            <div class="toolbar-group">
+                <label class="toolbar-label" for="grid-size-input">Size</label>
+                <div class="input-with-button">
+                    <input
+                        type="number"
+                        id="grid-size-input"
+                        min="1"
+                        max="64"
+                        value="8"
+                        aria-label="Grid size (1-64)"
+                    />
+                    <button class="btn btn-secondary" onclick="updateGridSize()" aria-label="Apply grid size">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
-    <!-- Centered Grid Wrapper -->
-    <div id="grid-wrapper">
-        <div id="grid-container"></div>
-    </div>
+            <!-- Orientation Selector -->
+            <div class="toolbar-group">
+                <label class="toolbar-label">Origin</label>
+                <div class="orientation-grid" role="radiogroup" aria-label="Grid origin position">
+                    <button class="origin-btn active" data-orientation="top-left" onclick="updateOrientation('top-left')" aria-label="Origin top-left" title="Top Left">
+                        <span class="origin-dot"></span>
+                    </button>
+                    <button class="origin-btn" data-orientation="top-right" onclick="updateOrientation('top-right')" aria-label="Origin top-right" title="Top Right">
+                        <span class="origin-dot"></span>
+                    </button>
+                    <button class="origin-btn" data-orientation="bottom-left" onclick="updateOrientation('bottom-left')" aria-label="Origin bottom-left" title="Bottom Left">
+                        <span class="origin-dot"></span>
+                    </button>
+                    <button class="origin-btn" data-orientation="bottom-right" onclick="updateOrientation('bottom-right')" aria-label="Origin bottom-right" title="Bottom Right">
+                        <span class="origin-dot"></span>
+                    </button>
+                </div>
+            </div>
 
-    <div id="clicked-buttons"></div>
+            <!-- Divider -->
+            <div class="toolbar-divider" aria-hidden="true"></div>
+
+            <!-- Frame Controls -->
+            <div class="toolbar-group frame-controls">
+                <button class="btn btn-icon" onclick="prevFrame()" aria-label="Previous frame" title="Previous Frame">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </button>
+                <span class="frame-indicator" id="frame-indicator" aria-live="polite">Frame 1/1</span>
+                <button class="btn btn-icon" onclick="nextFrame()" aria-label="Next frame" title="Next Frame">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
+                <button class="btn btn-secondary" onclick="newFrame()" title="Add new frame">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    <span class="btn-label">New</span>
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="toolbar-divider" aria-hidden="true"></div>
+
+            <!-- Animation Controls -->
+            <div class="toolbar-group">
+                <label class="toolbar-label" for="delay-input">Delay</label>
+                <div class="input-with-unit">
+                    <input type="number" id="delay-input" value="200" min="50" max="2000" step="50" aria-label="Animation delay in milliseconds"/>
+                    <span class="input-unit">ms</span>
+                </div>
+                <button class="btn btn-play" id="play-btn" onclick="toggleScroll()" aria-label="Play animation" title="Play/Stop">
+                    <svg class="icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    <svg class="icon-stop" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+                        <rect x="6" y="4" width="4" height="16"/>
+                        <rect x="14" y="4" width="4" height="16"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Clear Button -->
+            <button class="btn btn-danger" onclick="clearClickedButtons()" title="Clear current frame">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                <span class="btn-label">Clear</span>
+            </button>
+        </nav>
+
+        <!-- Grid Canvas -->
+        <section class="grid-section" aria-label="LED Matrix Grid">
+            <div class="grid-wrapper" id="grid-wrapper">
+                <div class="grid-container" id="grid-container" role="grid" aria-label="LED pixel grid"></div>
+            </div>
+
+            <!-- Coordinates Display -->
+            <output class="coords-display" id="clicked-buttons" aria-live="polite" aria-label="Selected coordinates">
+                Click cells to select pixels
+            </output>
+        </section>
+    </main>
+
+    <!-- Mobile Bottom Bar / Export Actions -->
+    <footer class="app-footer">
+        <div class="export-group">
+            <button class="btn btn-export" onclick="copyCoordinates()" title="Copy JSON to clipboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy</span>
+            </button>
+            <button class="btn btn-export" onclick="downloadJSON()" title="Download as JSON file">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>JSON</span>
+            </button>
+            <button class="btn btn-primary btn-export" onclick="downloadRustFile()" title="Download Rust source file">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                <span>Rust</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Toast notification container -->
+    <div class="toast-container" id="toast-container" aria-live="assertive"></div>
 
     <script src="script.js"></script>
 </body>

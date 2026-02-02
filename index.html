@@ -20,17 +20,38 @@
                 <span class="logo-icon" aria-hidden="true"></span>
                 NeoMatrix
             </h1>
-            <button class="info-toggle" id="info-toggle" aria-expanded="false" aria-controls="info-panel">
-                <span class="sr-only">Toggle help panel</span>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 16v-4M12 8h.01"/>
-                </svg>
-            </button>
+            <div class="header-actions">
+                <!-- Undo/Redo buttons -->
+                <button class="btn btn-icon" id="undo-btn" onclick="undo()" aria-label="Undo" title="Undo (Ctrl+Z)" disabled>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7v6h6"/>
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                    </svg>
+                </button>
+                <button class="btn btn-icon" id="redo-btn" onclick="redo()" aria-label="Redo" title="Redo (Ctrl+Y)" disabled>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 7v6h-6"/>
+                        <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>
+                    </svg>
+                </button>
+                <button class="info-toggle" id="info-toggle" aria-expanded="false" aria-controls="info-panel">
+                    <span class="sr-only">Toggle help panel</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <div class="info-panel" id="info-panel" hidden>
             <p>Design LED matrix frames for your <strong>WS2812 NeoPixel</strong> animations. Click cells to toggle pixels, manage frames, preview scrolling, and export to JSON or Rust code.</p>
+            <div class="info-shortcuts">
+                <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo</span>
+                <span><kbd>Ctrl</kbd>+<kbd>Y</kbd> Redo</span>
+                <span><kbd>Ctrl</kbd>+<kbd>←/→</kbd> Navigate frames</span>
+                <span><kbd>Space</kbd> Play/Stop</span>
+            </div>
             <div class="info-meta">
                 <span>Originally built for UF CEN4907C</span>
                 <a href="https://github.com/Technical-1/NeoMatrix-FrameCreator" target="_blank" rel="noopener">GitHub</a>
@@ -43,15 +64,26 @@
         <nav class="toolbar" role="toolbar" aria-label="Grid controls">
             <!-- Grid Settings Group -->
             <div class="toolbar-group">
-                <label class="toolbar-label" for="grid-size-input">Size</label>
-                <div class="input-with-button">
+                <label class="toolbar-label">Size</label>
+                <div class="size-inputs">
                     <input
                         type="number"
-                        id="grid-size-input"
+                        id="grid-width-input"
                         min="1"
                         max="64"
                         value="8"
-                        aria-label="Grid size (1-64)"
+                        aria-label="Grid width (1-64)"
+                        title="Width"
+                    />
+                    <span class="size-separator">×</span>
+                    <input
+                        type="number"
+                        id="grid-height-input"
+                        min="1"
+                        max="64"
+                        value="8"
+                        aria-label="Grid height (1-64)"
+                        title="Height"
                     />
                     <button class="btn btn-secondary" onclick="updateGridSize()" aria-label="Apply grid size">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -80,6 +112,15 @@
                 </div>
             </div>
 
+            <!-- Color Picker -->
+            <div class="toolbar-group">
+                <label class="toolbar-label" for="color-picker">Color</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="color-picker" value="#00f0ff" aria-label="LED color" />
+                    <span class="color-preview" id="color-preview"></span>
+                </div>
+            </div>
+
             <!-- Divider -->
             <div class="toolbar-divider" aria-hidden="true"></div>
 
@@ -102,6 +143,19 @@
                         <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
                     <span class="btn-label">New</span>
+                </button>
+                <button class="btn btn-secondary" onclick="duplicateFrame()" title="Duplicate current frame">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    <span class="btn-label">Dupe</span>
+                </button>
+                <button class="btn btn-danger btn-icon" onclick="deleteFrame()" title="Delete current frame">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
                 </button>
             </div>
 
@@ -129,12 +183,19 @@
             <!-- Clear Button -->
             <button class="btn btn-danger" onclick="clearClickedButtons()" title="Clear current frame">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
                 <span class="btn-label">Clear</span>
             </button>
         </nav>
+
+        <!-- Frame Thumbnails Bar -->
+        <div class="frames-bar" id="frames-bar">
+            <div class="frames-list" id="frames-list">
+                <!-- Frame thumbnails will be rendered here -->
+            </div>
+        </div>
 
         <!-- Grid Canvas -->
         <section class="grid-section" aria-label="LED Matrix Grid">
@@ -152,6 +213,14 @@
     <!-- Mobile Bottom Bar / Export Actions -->
     <footer class="app-footer">
         <div class="export-group">
+            <button class="btn btn-export" onclick="triggerImport()" title="Import JSON file">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Import</span>
+            </button>
             <button class="btn btn-export" onclick="copyCoordinates()" title="Copy JSON to clipboard">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -167,6 +236,13 @@
                 </svg>
                 <span>JSON</span>
             </button>
+            <button class="btn btn-export" onclick="downloadCSV()" title="Download as CSV file">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>CSV</span>
+            </button>
             <button class="btn btn-primary btn-export" onclick="downloadRustFile()" title="Download Rust source file">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -178,6 +254,9 @@
             </button>
         </div>
     </footer>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-input" accept=".json" style="display: none" onchange="handleImport(event)" />
 
     <!-- Toast notification container -->
     <div class="toast-container" id="toast-container" aria-live="assertive"></div>

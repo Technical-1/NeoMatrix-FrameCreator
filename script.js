@@ -10,12 +10,22 @@
    State Management
    ============================================ */
 
-let GRID_SIZE = 8;
+let GRID_WIDTH = 8;
+let GRID_HEIGHT = 8;
 let gridOrientation = "top-left";
 let frames = [{ coords: [], name: "Frame 1" }];
 let currentFrameIndex = 0;
 let scrollInterval = null;
 let scrollingInProgress = false;
+let ledColor = "#00f0ff";
+
+// Undo/Redo stacks
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO_STEPS = 50;
+
+// LocalStorage key
+const STORAGE_KEY = 'neomatrix-autosave';
 
 /* ============================================
    Initialization
@@ -26,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
+    // Try to load from localStorage
+    loadFromStorage();
+
     // Create initial grid
     createGrid();
 
@@ -35,8 +48,166 @@ function initializeApp() {
     // Set up keyboard navigation
     setupKeyboardNavigation();
 
+    // Set up color picker
+    setupColorPicker();
+
     // Initialize orientation button state
     updateOrientationButtons();
+
+    // Render frame thumbnails
+    renderFrameThumbnails();
+
+    // Update undo/redo button states
+    updateUndoRedoButtons();
+
+    // Set up autosave
+    setupAutosave();
+}
+
+/* ============================================
+   LocalStorage Autosave
+   ============================================ */
+
+function setupAutosave() {
+    // Save on page unload
+    window.addEventListener('beforeunload', saveToStorage);
+
+    // Periodic autosave every 30 seconds
+    setInterval(saveToStorage, 30000);
+}
+
+function saveToStorage() {
+    const data = {
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+        orientation: gridOrientation,
+        ledColor: ledColor,
+        frames: frames,
+        currentFrameIndex: currentFrameIndex
+    };
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+    }
+}
+
+function loadFromStorage() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            if (data.frames && data.frames.length > 0) {
+                GRID_WIDTH = data.gridWidth || 8;
+                GRID_HEIGHT = data.gridHeight || 8;
+                gridOrientation = data.orientation || "top-left";
+                ledColor = data.ledColor || "#00f0ff";
+                frames = data.frames;
+                currentFrameIndex = Math.min(data.currentFrameIndex || 0, frames.length - 1);
+
+                // Update UI inputs
+                const widthInput = document.getElementById('grid-width-input');
+                const heightInput = document.getElementById('grid-height-input');
+                const colorPicker = document.getElementById('color-picker');
+
+                if (widthInput) widthInput.value = GRID_WIDTH;
+                if (heightInput) heightInput.value = GRID_HEIGHT;
+                if (colorPicker) colorPicker.value = ledColor;
+
+                updateCellColor(ledColor);
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load from localStorage:', e);
+    }
+}
+
+/* ============================================
+   Undo/Redo System
+   ============================================ */
+
+function saveState() {
+    const state = {
+        frames: JSON.parse(JSON.stringify(frames)),
+        currentFrameIndex: currentFrameIndex,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT
+    };
+
+    undoStack.push(state);
+    if (undoStack.length > MAX_UNDO_STEPS) {
+        undoStack.shift();
+    }
+
+    // Clear redo stack when new action is taken
+    redoStack = [];
+    updateUndoRedoButtons();
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+
+    // Save current state to redo stack
+    const currentState = {
+        frames: JSON.parse(JSON.stringify(frames)),
+        currentFrameIndex: currentFrameIndex,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT
+    };
+    redoStack.push(currentState);
+
+    // Restore previous state
+    const prevState = undoStack.pop();
+    restoreState(prevState);
+
+    showToast('Undo', 'success');
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+
+    // Save current state to undo stack
+    const currentState = {
+        frames: JSON.parse(JSON.stringify(frames)),
+        currentFrameIndex: currentFrameIndex,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT
+    };
+    undoStack.push(currentState);
+
+    // Restore redo state
+    const nextState = redoStack.pop();
+    restoreState(nextState);
+
+    showToast('Redo', 'success');
+}
+
+function restoreState(state) {
+    frames = state.frames;
+    currentFrameIndex = Math.min(state.currentFrameIndex, frames.length - 1);
+
+    if (state.gridWidth !== GRID_WIDTH || state.gridHeight !== GRID_HEIGHT) {
+        GRID_WIDTH = state.gridWidth;
+        GRID_HEIGHT = state.gridHeight;
+        document.getElementById('grid-width-input').value = GRID_WIDTH;
+        document.getElementById('grid-height-input').value = GRID_HEIGHT;
+        createGrid();
+    } else {
+        applyFrameToGrid();
+    }
+
+    updateFrameIndicator();
+    updateCoordinatesDisplay();
+    renderFrameThumbnails();
+    updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+
+    if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+    if (redoBtn) redoBtn.disabled = redoStack.length === 0;
 }
 
 /* ============================================
@@ -57,13 +228,66 @@ function setupInfoPanel() {
 }
 
 /* ============================================
+   Color Picker
+   ============================================ */
+
+function setupColorPicker() {
+    const picker = document.getElementById('color-picker');
+    const preview = document.getElementById('color-preview');
+
+    if (!picker) return;
+
+    // Initialize color
+    updateCellColor(picker.value);
+    if (preview) {
+        preview.style.backgroundColor = picker.value;
+        preview.style.color = picker.value;
+    }
+
+    picker.addEventListener('input', (e) => {
+        ledColor = e.target.value;
+        updateCellColor(ledColor);
+        if (preview) {
+            preview.style.backgroundColor = ledColor;
+            preview.style.color = ledColor;
+        }
+        renderFrameThumbnails();
+    });
+}
+
+function updateCellColor(color) {
+    const root = document.documentElement;
+    root.style.setProperty('--cell-on', color);
+
+    // Calculate glow color with opacity
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    root.style.setProperty('--cell-on-glow', `rgba(${r}, ${g}, ${b}, 0.4)`);
+}
+
+/* ============================================
    Keyboard Navigation
    ============================================ */
 
 function setupKeyboardNavigation() {
     document.addEventListener('keydown', (e) => {
-        // Frame navigation with arrow keys when not in input
+        // Skip if in input field
         if (document.activeElement.tagName === 'INPUT') return;
+
+        // Undo: Ctrl+Z
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+            return;
+        }
+
+        // Redo: Ctrl+Y or Ctrl+Shift+Z
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redo();
+            return;
+        }
 
         switch(e.key) {
             case 'ArrowLeft':
@@ -97,28 +321,25 @@ function setupKeyboardNavigation() {
    Grid Creation & Rendering
    ============================================ */
 
-/**
- * Dynamically creates an NxN grid of buttons (N = GRID_SIZE).
- * Uses CSS custom properties for responsive sizing.
- */
 function createGrid() {
     const container = document.getElementById("grid-container");
     if (!container) return;
 
-    // Clear existing children safely
+    // Clear existing children
     while (container.firstChild) {
         container.removeChild(container.firstChild);
     }
 
-    // Set grid template using CSS custom property for cell size
+    // Get cell size from CSS
     const cellSize = getComputedStyle(document.documentElement)
         .getPropertyValue('--cell-size').trim() || '2.75rem';
 
-    container.style.gridTemplateColumns = `repeat(${GRID_SIZE}, ${cellSize})`;
-    container.style.gridTemplateRows = `repeat(${GRID_SIZE}, ${cellSize})`;
+    container.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, ${cellSize})`;
+    container.style.gridTemplateRows = `repeat(${GRID_HEIGHT}, ${cellSize})`;
 
-    // Create buttons with improved accessibility
-    for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+    // Create buttons
+    const totalCells = GRID_WIDTH * GRID_HEIGHT;
+    for (let i = 0; i < totalCells; i++) {
         const btn = document.createElement("button");
         const { row, col } = indexToRowCol(i);
 
@@ -141,48 +362,43 @@ function createGrid() {
     updateFrameIndicator();
 }
 
-/**
- * Handles a click on a specific button in the grid.
- * Toggles the coordinate in our in-memory array and updates the UI.
- */
 function handleCellClick(button, index) {
+    // Save state for undo
+    saveState();
+
     const { row, col } = indexToRowCol(index);
     const activeFrame = frames[currentFrameIndex];
 
     const existing = activeFrame.coords.findIndex(pt => pt.row === row && pt.col === col);
 
     if (existing >= 0) {
-        // Remove coordinate
         activeFrame.coords.splice(existing, 1);
         button.classList.remove("clicked");
         button.setAttribute('aria-pressed', 'false');
     } else {
-        // Add coordinate
         activeFrame.coords.push({ row, col });
         button.classList.add("clicked");
         button.setAttribute('aria-pressed', 'true');
     }
 
     updateCoordinatesDisplay();
+    renderFrameThumbnails();
 }
 
-/**
- * Updates the orientation and clears any clicked buttons/coordinates.
- */
 function updateOrientation(newOrientation) {
+    saveState();
+
     gridOrientation = newOrientation;
     frames.forEach(f => f.coords = []);
     currentFrameIndex = 0;
 
     updateOrientationButtons();
     createGrid();
+    renderFrameThumbnails();
 
-    showToast(`Origin set to ${newOrientation.replace('-', ' ')}`, 'success');
+    showToast(`Origin: ${newOrientation.replace('-', ' ')}`, 'success');
 }
 
-/**
- * Updates the active state of orientation buttons
- */
 function updateOrientationButtons() {
     const buttons = document.querySelectorAll('.origin-btn');
     buttons.forEach(btn => {
@@ -192,48 +408,50 @@ function updateOrientationButtons() {
     });
 }
 
-/**
- * Reads the user's chosen grid size from the input, updates GRID_SIZE,
- * and regenerates the grid.
- */
 function updateGridSize() {
-    const input = document.getElementById("grid-size-input");
-    const val = parseInt(input.value, 10);
+    const widthInput = document.getElementById("grid-width-input");
+    const heightInput = document.getElementById("grid-height-input");
 
-    if (isNaN(val) || val < 1) {
-        showToast("Grid size must be at least 1", 'error');
-        input.value = GRID_SIZE;
+    const newWidth = parseInt(widthInput.value, 10);
+    const newHeight = parseInt(heightInput.value, 10);
+
+    if (isNaN(newWidth) || newWidth < 1 || isNaN(newHeight) || newHeight < 1) {
+        showToast("Size must be at least 1", 'error');
+        widthInput.value = GRID_WIDTH;
+        heightInput.value = GRID_HEIGHT;
         return;
     }
 
-    if (val > 64) {
-        showToast("Maximum grid size is 64", 'error');
-        input.value = 64;
+    if (newWidth > 64 || newHeight > 64) {
+        showToast("Maximum size is 64", 'error');
+        widthInput.value = Math.min(newWidth, 64);
+        heightInput.value = Math.min(newHeight, 64);
         return;
     }
 
-    if (val === GRID_SIZE) return;
+    if (newWidth === GRID_WIDTH && newHeight === GRID_HEIGHT) return;
 
-    GRID_SIZE = val;
+    saveState();
+
+    GRID_WIDTH = newWidth;
+    GRID_HEIGHT = newHeight;
     frames.forEach(f => f.coords = []);
     currentFrameIndex = 0;
     createGrid();
+    renderFrameThumbnails();
 
-    showToast(`Grid resized to ${GRID_SIZE}x${GRID_SIZE}`, 'success');
+    showToast(`Grid: ${GRID_WIDTH}×${GRID_HEIGHT}`, 'success');
 }
 
-/**
- * Updates the dot/marker for whichever button is row=0, col=0
- * in the current orientation.
- */
 function highlightCornerButton() {
     const buttons = document.querySelectorAll("#grid-container button");
     buttons.forEach(b => b.classList.remove("corner-dot"));
 
-    for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+    const totalCells = GRID_WIDTH * GRID_HEIGHT;
+    for (let i = 0; i < totalCells; i++) {
         const coords = indexToRowCol(i);
         if (coords.row === 0 && coords.col === 0) {
-            buttons[i].classList.add("corner-dot");
+            if (buttons[i]) buttons[i].classList.add("corner-dot");
             break;
         }
     }
@@ -244,13 +462,56 @@ function highlightCornerButton() {
    ============================================ */
 
 function newFrame() {
+    saveState();
+
     frames.push({ coords: [], name: `Frame ${frames.length + 1}` });
     currentFrameIndex = frames.length - 1;
     applyFrameToGrid();
     updateFrameIndicator();
     updateCoordinatesDisplay();
+    renderFrameThumbnails();
 
     showToast(`Created Frame ${frames.length}`, 'success');
+}
+
+function duplicateFrame() {
+    saveState();
+
+    const currentFrame = frames[currentFrameIndex];
+    const newFrameData = {
+        coords: JSON.parse(JSON.stringify(currentFrame.coords)),
+        name: `Frame ${frames.length + 1}`
+    };
+
+    frames.splice(currentFrameIndex + 1, 0, newFrameData);
+    currentFrameIndex++;
+    applyFrameToGrid();
+    updateFrameIndicator();
+    updateCoordinatesDisplay();
+    renderFrameThumbnails();
+
+    showToast('Frame duplicated', 'success');
+}
+
+function deleteFrame() {
+    if (frames.length <= 1) {
+        showToast("Can't delete last frame", 'error');
+        return;
+    }
+
+    saveState();
+
+    frames.splice(currentFrameIndex, 1);
+    if (currentFrameIndex >= frames.length) {
+        currentFrameIndex = frames.length - 1;
+    }
+
+    applyFrameToGrid();
+    updateFrameIndicator();
+    updateCoordinatesDisplay();
+    renderFrameThumbnails();
+
+    showToast('Frame deleted', 'success');
 }
 
 function prevFrame() {
@@ -259,6 +520,7 @@ function prevFrame() {
         applyFrameToGrid();
         updateFrameIndicator();
         updateCoordinatesDisplay();
+        renderFrameThumbnails();
     }
 }
 
@@ -268,38 +530,44 @@ function nextFrame() {
         applyFrameToGrid();
         updateFrameIndicator();
         updateCoordinatesDisplay();
+        renderFrameThumbnails();
     }
 }
 
-/**
- * Clear the current frame only
- */
+function goToFrame(index) {
+    if (index >= 0 && index < frames.length) {
+        currentFrameIndex = index;
+        applyFrameToGrid();
+        updateFrameIndicator();
+        updateCoordinatesDisplay();
+        renderFrameThumbnails();
+    }
+}
+
 function clearClickedButtons() {
     if (frames[currentFrameIndex].coords.length === 0) {
-        showToast("Frame is already empty", 'error');
+        showToast("Frame is empty", 'error');
         return;
     }
+
+    saveState();
 
     frames[currentFrameIndex].coords = [];
     applyFrameToGrid();
     updateCoordinatesDisplay();
+    renderFrameThumbnails();
 
     showToast("Frame cleared", 'success');
 }
 
-/**
- * Apply the active frame's coords to the grid display
- */
 function applyFrameToGrid() {
     const buttons = document.querySelectorAll("#grid-container button");
 
-    // Clear all
     buttons.forEach(b => {
         b.classList.remove("clicked");
         b.setAttribute('aria-pressed', 'false');
     });
 
-    // Apply active frame
     const active = frames[currentFrameIndex];
     active.coords.forEach(pt => {
         const idx = rowColToIndex(pt.row, pt.col);
@@ -310,9 +578,6 @@ function applyFrameToGrid() {
     });
 }
 
-/**
- * Refreshes the coordinates display based on the current frame.
- */
 function updateCoordinatesDisplay() {
     const disp = document.getElementById("clicked-buttons");
     if (!disp) return;
@@ -335,6 +600,129 @@ function updateFrameIndicator() {
 }
 
 /* ============================================
+   Frame Thumbnails with Drag & Drop
+   ============================================ */
+
+function renderFrameThumbnails() {
+    const container = document.getElementById('frames-list');
+    if (!container) return;
+
+    // Clear existing
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+
+    // Calculate thumbnail grid size (max 8x8 preview)
+    const thumbCols = Math.min(GRID_WIDTH, 8);
+    const thumbRows = Math.min(GRID_HEIGHT, 8);
+    const cellSizePx = Math.floor(44 / Math.max(thumbCols, thumbRows));
+
+    frames.forEach((frame, idx) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'frame-thumb' + (idx === currentFrameIndex ? ' active' : '');
+        thumb.draggable = true;
+        thumb.dataset.index = idx;
+
+        // Create mini grid
+        const grid = document.createElement('div');
+        grid.className = 'frame-thumb-grid';
+        grid.style.gridTemplateColumns = `repeat(${thumbCols}, ${cellSizePx}px)`;
+        grid.style.gridTemplateRows = `repeat(${thumbRows}, ${cellSizePx}px)`;
+
+        for (let r = 0; r < thumbRows; r++) {
+            for (let c = 0; c < thumbCols; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'frame-thumb-cell';
+
+                // Check if this cell is lit
+                const isLit = frame.coords.some(pt => pt.row === r && pt.col === c);
+                if (isLit) cell.classList.add('on');
+
+                grid.appendChild(cell);
+            }
+        }
+
+        // Label
+        const label = document.createElement('span');
+        label.className = 'frame-thumb-label';
+        label.textContent = idx + 1;
+
+        thumb.appendChild(grid);
+        thumb.appendChild(label);
+
+        // Click to select
+        thumb.addEventListener('click', () => goToFrame(idx));
+
+        // Drag events
+        thumb.addEventListener('dragstart', handleDragStart);
+        thumb.addEventListener('dragover', handleDragOver);
+        thumb.addEventListener('dragenter', handleDragEnter);
+        thumb.addEventListener('dragleave', handleDragLeave);
+        thumb.addEventListener('drop', handleDrop);
+        thumb.addEventListener('dragend', handleDragEnd);
+
+        container.appendChild(thumb);
+    });
+}
+
+let draggedFrameIndex = null;
+
+function handleDragStart(e) {
+    draggedFrameIndex = parseInt(this.dataset.index);
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+
+    const targetIndex = parseInt(this.dataset.index);
+    if (draggedFrameIndex !== null && draggedFrameIndex !== targetIndex) {
+        saveState();
+
+        // Reorder frames
+        const [draggedFrame] = frames.splice(draggedFrameIndex, 1);
+        frames.splice(targetIndex, 0, draggedFrame);
+
+        // Update current index if needed
+        if (currentFrameIndex === draggedFrameIndex) {
+            currentFrameIndex = targetIndex;
+        } else if (draggedFrameIndex < currentFrameIndex && targetIndex >= currentFrameIndex) {
+            currentFrameIndex--;
+        } else if (draggedFrameIndex > currentFrameIndex && targetIndex <= currentFrameIndex) {
+            currentFrameIndex++;
+        }
+
+        renderFrameThumbnails();
+        updateFrameIndicator();
+        showToast('Frame moved', 'success');
+    }
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.frame-thumb').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+    draggedFrameIndex = null;
+}
+
+/* ============================================
    Orientation Mapping
    ============================================ */
 
@@ -342,28 +730,28 @@ function indexToRowCol(index) {
     switch (gridOrientation) {
         case "top-left":
             return {
-                row: Math.floor(index / GRID_SIZE),
-                col: index % GRID_SIZE
+                row: Math.floor(index / GRID_WIDTH),
+                col: index % GRID_WIDTH
             };
         case "top-right":
             return {
-                row: (GRID_SIZE - 1) - (index % GRID_SIZE),
-                col: Math.floor(index / GRID_SIZE)
+                row: (GRID_WIDTH - 1) - (index % GRID_WIDTH),
+                col: Math.floor(index / GRID_WIDTH)
             };
         case "bottom-left":
             return {
-                row: index % GRID_SIZE,
-                col: (GRID_SIZE - 1) - Math.floor(index / GRID_SIZE)
+                row: index % GRID_WIDTH,
+                col: (GRID_HEIGHT - 1) - Math.floor(index / GRID_WIDTH)
             };
         case "bottom-right":
             return {
-                row: (GRID_SIZE - 1) - Math.floor(index / GRID_SIZE),
-                col: (GRID_SIZE - 1) - (index % GRID_SIZE)
+                row: (GRID_HEIGHT - 1) - Math.floor(index / GRID_WIDTH),
+                col: (GRID_WIDTH - 1) - (index % GRID_WIDTH)
             };
         default:
             return {
-                row: Math.floor(index / GRID_SIZE),
-                col: index % GRID_SIZE
+                row: Math.floor(index / GRID_WIDTH),
+                col: index % GRID_WIDTH
             };
     }
 }
@@ -371,15 +759,15 @@ function indexToRowCol(index) {
 function rowColToIndex(r, c) {
     switch (gridOrientation) {
         case "top-left":
-            return r * GRID_SIZE + c;
+            return r * GRID_WIDTH + c;
         case "top-right":
-            return (GRID_SIZE - 1 - c) * GRID_SIZE + r;
+            return (GRID_WIDTH - 1 - c) * GRID_WIDTH + r;
         case "bottom-left":
-            return c * GRID_SIZE + (GRID_SIZE - 1 - r);
+            return c * GRID_WIDTH + (GRID_HEIGHT - 1 - r);
         case "bottom-right":
-            return (GRID_SIZE - 1 - r) * GRID_SIZE + (GRID_SIZE - 1 - c);
+            return (GRID_HEIGHT - 1 - r) * GRID_WIDTH + (GRID_WIDTH - 1 - c);
         default:
-            return r * GRID_SIZE + c;
+            return r * GRID_WIDTH + c;
     }
 }
 
@@ -387,9 +775,6 @@ function rowColToIndex(r, c) {
    Scrolling Animation
    ============================================ */
 
-/**
- * Toggle scroll animation on/off
- */
 function toggleScroll() {
     if (scrollingInProgress) {
         stopScroll();
@@ -402,7 +787,6 @@ function startScroll() {
     if (scrollingInProgress) return;
     scrollingInProgress = true;
 
-    // Update play button state
     const playBtn = document.getElementById('play-btn');
     if (playBtn) {
         playBtn.classList.add('playing');
@@ -410,7 +794,6 @@ function startScroll() {
         playBtn.querySelector('.icon-stop').style.display = 'block';
     }
 
-    // Build one 'megaframe' from all frames
     const megaCoords = buildMegaFrame();
     if (!megaCoords.length) {
         showToast("No pixels to animate", 'error');
@@ -418,15 +801,13 @@ function startScroll() {
         return;
     }
 
-    // Find bounding box (minCol, maxCol)
     let minC = Infinity, maxC = -Infinity;
     megaCoords.forEach(pt => {
         if (pt.col < minC) minC = pt.col;
         if (pt.col > maxC) maxC = pt.col;
     });
 
-    // Start offset so that left edge is just beyond the right side
-    let offset = GRID_SIZE - minC;
+    let offset = GRID_WIDTH - minC;
 
     let delay = parseInt(document.getElementById("delay-input").value, 10);
     if (isNaN(delay) || delay < 50) delay = 200;
@@ -435,8 +816,7 @@ function startScroll() {
         renderMegaCoords(megaCoords, offset);
 
         if (offset + maxC < 0) {
-            // Loop back to start
-            offset = GRID_SIZE - minC;
+            offset = GRID_WIDTH - minC;
         } else {
             offset--;
         }
@@ -450,7 +830,6 @@ function stopScroll() {
     }
     scrollingInProgress = false;
 
-    // Update play button state
     const playBtn = document.getElementById('play-btn');
     if (playBtn) {
         playBtn.classList.remove('playing');
@@ -461,10 +840,6 @@ function stopScroll() {
     applyFrameToGrid();
 }
 
-/**
- * Lays out each frame with no horizontal gap,
- * building a single array of coords (megaCoords).
- */
 function buildMegaFrame() {
     const result = [];
     let currentX = 0;
@@ -472,7 +847,6 @@ function buildMegaFrame() {
     frames.forEach((frame) => {
         if (!frame.coords.length) return;
 
-        // Bounding box for this frame
         let minC = Infinity, maxC = -Infinity;
         frame.coords.forEach(pt => {
             if (pt.col < minC) minC = pt.col;
@@ -480,29 +854,24 @@ function buildMegaFrame() {
         });
         const width = (maxC - minC + 2);
 
-        // Shift each col so the frame's minC starts at currentX
         frame.coords.forEach(pt => {
             const newCol = pt.col - minC + currentX;
             result.push({ row: pt.row, col: newCol });
         });
 
-        // Move currentX for next frame
         currentX += width;
     });
 
     return result;
 }
 
-/**
- * Renders the merged coords at the given offset.
- */
 function renderMegaCoords(coords, offset) {
     const buttons = document.querySelectorAll("#grid-container button");
     buttons.forEach(b => b.classList.remove("clicked"));
 
     coords.forEach(pt => {
         const shiftedCol = pt.col + offset;
-        if (shiftedCol >= 0 && shiftedCol < GRID_SIZE) {
+        if (shiftedCol >= 0 && shiftedCol < GRID_WIDTH) {
             const idx = rowColToIndex(pt.row, shiftedCol);
             if (idx >= 0 && idx < buttons.length) {
                 buttons[idx].classList.add("clicked");
@@ -512,18 +881,66 @@ function renderMegaCoords(coords, offset) {
 }
 
 /* ============================================
-   Export Functions
+   Import/Export Functions
    ============================================ */
 
-/**
- * Copies the current coordinates to the clipboard in JSON format.
- */
-function copyCoordinates() {
-    const data = {
-        gridSize: GRID_SIZE,
-        orientation: gridOrientation,
-        frames: frames.map(f => ({ name: f.name, coords: f.coords }))
+function triggerImport() {
+    document.getElementById('import-input').click();
+}
+
+function handleImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            if (!data.frames || !Array.isArray(data.frames)) {
+                throw new Error('Invalid format: missing frames array');
+            }
+
+            saveState();
+
+            // Load data
+            if (data.gridWidth) GRID_WIDTH = data.gridWidth;
+            if (data.gridHeight) GRID_HEIGHT = data.gridHeight;
+            if (data.gridSize) {
+                // Legacy support for square grids
+                GRID_WIDTH = data.gridSize;
+                GRID_HEIGHT = data.gridSize;
+            }
+            if (data.orientation) gridOrientation = data.orientation;
+
+            frames = data.frames.map((f, i) => ({
+                coords: f.coords || [],
+                name: f.name || `Frame ${i + 1}`
+            }));
+
+            currentFrameIndex = 0;
+
+            // Update UI
+            document.getElementById('grid-width-input').value = GRID_WIDTH;
+            document.getElementById('grid-height-input').value = GRID_HEIGHT;
+            updateOrientationButtons();
+            createGrid();
+            renderFrameThumbnails();
+
+            showToast(`Imported ${frames.length} frames`, 'success');
+        } catch (err) {
+            console.error('Import error:', err);
+            showToast('Invalid JSON file', 'error');
+        }
     };
+    reader.readAsText(file);
+
+    // Reset input so same file can be re-imported
+    event.target.value = '';
+}
+
+function copyCoordinates() {
+    const data = getExportData();
     const json = JSON.stringify(data, null, 2);
 
     navigator.clipboard.writeText(json)
@@ -534,41 +951,46 @@ function copyCoordinates() {
         });
 }
 
-/**
- * Prompts a file download in JSON format.
- */
 function downloadJSON() {
-    const data = {
-        gridSize: GRID_SIZE,
-        orientation: gridOrientation,
-        frames: frames.map(f => ({ name: f.name, coords: f.coords }))
-    };
+    const data = getExportData();
     const jsonStr = JSON.stringify(data, null, 2);
-
     downloadFile(jsonStr, "frames.json", "application/json");
     showToast("Downloaded frames.json", 'success');
 }
 
-/**
- * Prompts a Rust file download
- */
+function downloadCSV() {
+    let csv = "frame,row,col\n";
+
+    frames.forEach((frame, frameIdx) => {
+        frame.coords.forEach(pt => {
+            csv += `${frameIdx + 1},${pt.row},${pt.col}\n`;
+        });
+    });
+
+    downloadFile(csv, "frames.csv", "text/csv");
+    showToast("Downloaded frames.csv", 'success');
+}
+
 function downloadRustFile() {
-    const sizeValue = parseInt(document.getElementById("grid-size-input").value, 10) || 8;
-    const w = sizeValue;
-    const h = sizeValue;
-
+    const w = GRID_WIDTH;
+    const h = GRID_HEIGHT;
     const delayValue = parseInt(document.getElementById("delay-input").value, 10) || 150;
-    const scrollSpeed = delayValue;
 
-    const rustContent = generateRustCode(scrollSpeed, w, h);
-
+    const rustContent = generateRustCode(delayValue, w, h);
     downloadFile(rustContent, "nm_scroll_frames.rs", "text/plain");
     showToast("Downloaded nm_scroll_frames.rs", 'success');
 }
 
-/**
- * Helper function to download a file
- */
+function getExportData() {
+    return {
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+        orientation: gridOrientation,
+        ledColor: ledColor,
+        frames: frames.map(f => ({ name: f.name, coords: f.coords }))
+    };
+}
+
 function downloadFile(content, filename, mimeType) {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -583,9 +1005,6 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
-/**
- * Generates the Rust source code for the NmScroll struct.
- */
 function generateRustCode(scrollSpeed, width, height) {
     let code = `use smart_leds::RGB8;
 
@@ -633,7 +1052,6 @@ impl NmScroll {
     }
 `;
 
-    // Define const arrays for each frame
     frames.forEach((frame, i) => {
         const arrItems = frame.coords
             .map(({ row, col }) => `(${col}, ${row})`)
@@ -649,15 +1067,9 @@ impl NmScroll {
         self.clear();
 
         let scroll_increment: isize = ${scrollSpeed};
-
-        // We'll place frames consecutively (with 1-col gap).
-        // current_x tracks the start col for the next frame.
         let mut current_x: isize = 0;
-
-        // total_width is how many columns wide the merged frames are
         let mut total_width: isize = 0;
 
-        // Create an array of references to frames
         let frames_data: [&[(usize, usize)]; ${frames.length}] = [
 `;
     frames.forEach((_, i) => {
@@ -667,7 +1079,6 @@ impl NmScroll {
 
     code += `
         for (i, frame_data) in frames_data.iter().enumerate() {
-            // bounding box
             let mut frame_min = isize::MAX;
             let mut frame_max = isize::MIN;
             for &(x, _y) in (*frame_data).iter() {
@@ -677,10 +1088,7 @@ impl NmScroll {
             let width_of_frame = (frame_max - frame_min + 1);
             let offset_x = (current_x - frame_min) - self.frame;
 
-            // Draw
             self.draw_frame(frame_data, offset_x);
-
-            // 1-col gap
             current_x += width_of_frame + 1;
 
             if i == frames_data.len() - 1 {
@@ -688,10 +1096,8 @@ impl NmScroll {
             }
         }
 
-        // Advance self.frame by scroll_increment
         self.frame += scroll_increment;
 
-        // Once we've scrolled past the entire shape, loop back
         let loop_length = total_width + WIDTH as isize;
         if self.frame >= loop_length {
             self.frame = 0;
@@ -707,11 +1113,6 @@ impl NmScroll {
    Toast Notifications
    ============================================ */
 
-/**
- * Show a toast notification
- * @param {string} message - The message to display
- * @param {string} type - 'success' or 'error'
- */
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -723,7 +1124,6 @@ function showToast(message, type = 'success') {
 
     container.appendChild(toast);
 
-    // Auto-remove after 3 seconds
     setTimeout(() => {
         toast.classList.add('hiding');
         setTimeout(() => {
@@ -731,14 +1131,13 @@ function showToast(message, type = 'success') {
                 toast.parentNode.removeChild(toast);
             }
         }, 200);
-    }, 3000);
+    }, 2500);
 }
 
 /* ============================================
    Initialize on Load
    ============================================ */
 
-// Fallback for browsers that fire DOMContentLoaded before script loads
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {

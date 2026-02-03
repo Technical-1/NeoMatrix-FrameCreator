@@ -1415,9 +1415,14 @@ function downloadGIF() {
     // Use setTimeout to allow UI to update
     setTimeout(() => {
         try {
-            const scale = 10; // Each LED cell is 10x10 pixels in the GIF
-            const gifWidth = GRID_WIDTH * scale;
-            const gifHeight = GRID_HEIGHT * scale;
+            // Higher resolution: 32px per cell for crisp output
+            const cellSize = 32;
+            const cellGap = 4;
+            const cellRadius = 6;
+            const padding = 16;
+
+            const gifWidth = GRID_WIDTH * (cellSize + cellGap) - cellGap + padding * 2;
+            const gifHeight = GRID_HEIGHT * (cellSize + cellGap) - cellGap + padding * 2;
 
             const encoder = new GifEncoder(gifWidth, gifHeight);
             const canvas = document.createElement('canvas');
@@ -1443,23 +1448,72 @@ function downloadGIF() {
             const totalScrollSteps = (maxC - minC) + GRID_WIDTH + 1;
             let offset = GRID_WIDTH - minC;
 
+            // Helper to draw rounded rectangle
+            const drawRoundedRect = (x, y, w, h, r) => {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+                ctx.fill();
+            };
+
+            // Helper to parse hex color to RGB
+            const hexToRgbArray = (hex) => {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? [
+                    parseInt(result[1], 16),
+                    parseInt(result[2], 16),
+                    parseInt(result[3], 16)
+                ] : [0, 240, 255];
+            };
+
             // Generate frames for the animation
             for (let step = 0; step < totalScrollSteps; step++) {
-                // Clear canvas
+                // Dark background
                 ctx.fillStyle = '#0a0a0f';
                 ctx.fillRect(0, 0, gifWidth, gifHeight);
 
-                // Draw visible pixels
+                // Draw grid background cells (off state)
+                ctx.fillStyle = '#1a1a24';
+                for (let row = 0; row < GRID_HEIGHT; row++) {
+                    for (let col = 0; col < GRID_WIDTH; col++) {
+                        const x = padding + col * (cellSize + cellGap);
+                        const y = padding + row * (cellSize + cellGap);
+                        drawRoundedRect(x, y, cellSize, cellSize, cellRadius);
+                    }
+                }
+
+                // Draw lit pixels with glow effect
                 megaCoords.forEach(pt => {
                     const shiftedCol = pt.col + offset;
                     if (shiftedCol >= 0 && shiftedCol < GRID_WIDTH) {
-                        ctx.fillStyle = pt.color || ledColor;
-                        ctx.fillRect(
-                            shiftedCol * scale,
-                            pt.row * scale,
-                            scale - 1,
-                            scale - 1
-                        );
+                        const x = padding + shiftedCol * (cellSize + cellGap);
+                        const y = padding + pt.row * (cellSize + cellGap);
+                        const color = pt.color || ledColor;
+                        const [r, g, b] = hexToRgbArray(color);
+
+                        // Outer glow
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.3)`;
+                        drawRoundedRect(x - 4, y - 4, cellSize + 8, cellSize + 8, cellRadius + 2);
+
+                        // Inner glow
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
+                        drawRoundedRect(x - 2, y - 2, cellSize + 4, cellSize + 4, cellRadius + 1);
+
+                        // Main LED
+                        ctx.fillStyle = color;
+                        drawRoundedRect(x, y, cellSize, cellSize, cellRadius);
+
+                        // Highlight
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+                        drawRoundedRect(x + 4, y + 4, cellSize - 12, cellSize / 3, cellRadius - 2);
                     }
                 });
 

@@ -1153,7 +1153,7 @@ impl NmScroll {
             .join(", ");
         code += `
     // ${frame.name}
-    const FRAME_${i + 1}: &[Pixel] = &[${arrItems}];
+    const FRAME_${i + 1}: &'static [Pixel] = &[${arrItems}];
 `;
     });
 
@@ -1167,7 +1167,7 @@ impl NmScroll {
         let frames_data: [&[Pixel]; ${frames.length}] = [
 `;
     frames.forEach((_, i) => {
-        code += `            FRAME_${i + 1},\n`;
+        code += `            Self::FRAME_${i + 1},\n`;
     });
     code += `        ];\n\n`;
 

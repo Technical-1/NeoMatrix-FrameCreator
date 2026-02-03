@@ -1,0 +1,24 @@
+{
+  "name": "neomatrix-framecreator",
+  "version": "1.0.0",
+  "description": "The **NeoMatrix Frame Creator** is a web-based tool designed to help developers and artists craft LED matrix frames for **animations** on projects that use NeoMatrix and WS2812 (RGB) LEDs. The tool provides an interactive grid and straightforward controls to visualize each frame, experiment with orientation and sizes, and ultimately export your designs into usable code. This was originally designed for the final project in the University of Florida class CEN4907C, Computer Engineering Design 1, on the WS2812 LED matrix.",
+  "main": "._script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Technical-1/NeoMatrix-FrameCreator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Technical-1/NeoMatrix-FrameCreator/issues"
+  },
+  "homepage": "https://github.com/Technical-1/NeoMatrix-FrameCreator#readme",
+  "devDependencies": {
+    "canvas": "^3.2.1"
+  }
+}

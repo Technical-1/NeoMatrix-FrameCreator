@@ -54,6 +54,26 @@ function drawLED(ctx, x, y, size, color, glow = true) {
     }
 }
 
+// Draw rectangular LED with glow
+function drawLEDRect(ctx, x, y, w, h, color, glow = true) {
+    const r = Math.min(w, h) * 0.15;
+    if (glow && color !== colors.cell) {
+        // Outer glow
+        ctx.fillStyle = color + '40';
+        drawRoundedRect(ctx, x - 3, y - 3, w + 6, h + 6, r + 2);
+        // Inner glow
+        ctx.fillStyle = color + '80';
+        drawRoundedRect(ctx, x - 1, y - 1, w + 2, h + 2, r + 1);
+    }
+    ctx.fillStyle = color;
+    drawRoundedRect(ctx, x, y, w, h, r);
+    // Highlight
+    if (color !== colors.cell) {
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        drawRoundedRect(ctx, x + w * 0.1, y + h * 0.08, w * 0.4, h * 0.12, r * 0.5);
+    }
+}
+
 function generateOGImage() {
     const canvas = createCanvas(1200, 630);
     const ctx = canvas.getContext('2d');
@@ -79,18 +99,25 @@ function generateOGImage() {
         ctx.stroke();
     }
 
-    // LED Matrix container
+    // LED Matrix container - sized to fit 7x4 grid properly
+    const containerX = 60;
+    const containerY = 140;
+    const containerW = 460;
+    const containerH = 350;
+
     ctx.fillStyle = colors.bgLight;
-    drawRoundedRect(ctx, 60, 145, 440, 340, 16);
+    drawRoundedRect(ctx, containerX, containerY, containerW, containerH, 16);
     ctx.strokeStyle = colors.border;
     ctx.lineWidth = 2;
     ctx.stroke();
 
     // LED pattern spelling "NM" (stylized)
-    const ledSize = 45;
-    const gap = 15;
-    const startX = 80;
-    const startY = 165;
+    // 7 columns x 4 rows, filling the container with padding
+    const padding = 20;
+    const cellW = 52;
+    const cellH = 68;
+    const gapX = 8;  // (460 - 40 - 7*52) / 6 = ~8
+    const gapY = 9;  // (350 - 40 - 4*68) / 3 = ~9
 
     const pattern = [
         [1, 0, 0, 1, 0, 2, 2],
@@ -101,11 +128,11 @@ function generateOGImage() {
 
     for (let row = 0; row < 4; row++) {
         for (let col = 0; col < 7; col++) {
-            const x = startX + col * (ledSize + gap);
-            const y = startY + row * (ledSize + gap);
+            const x = containerX + padding + col * (cellW + gapX);
+            const y = containerY + padding + row * (cellH + gapY);
             const val = pattern[row][col];
             const color = val === 0 ? colors.cell : val === 1 ? colors.cyan : colors.magenta;
-            drawLED(ctx, x, y, ledSize, color);
+            drawLEDRect(ctx, x, y, cellW, cellH, color);
         }
     }
 

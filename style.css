@@ -884,13 +884,14 @@ input[type="color"]:focus-visible {
     z-index: 1;
 }
 
-/* Active/Lit cell */
+/* Active/Lit cell - uses per-pixel color if set, falls back to global */
 .grid-container button.clicked {
-    background: var(--cell-on);
-    border-color: var(--cell-on);
+    --pixel-color: var(--cell-on);
+    background: var(--pixel-color);
+    border-color: var(--pixel-color);
     box-shadow:
-        0 0 10px var(--cell-on-glow),
-        0 0 20px var(--cell-on-glow),
+        0 0 10px color-mix(in srgb, var(--pixel-color) 40%, transparent),
+        0 0 20px color-mix(in srgb, var(--pixel-color) 40%, transparent),
         inset 0 0 10px rgba(255, 255, 255, 0.3);
     animation: pulse 2s ease-in-out infinite;
 }
@@ -898,14 +899,14 @@ input[type="color"]:focus-visible {
 @keyframes pulse {
     0%, 100% {
         box-shadow:
-            0 0 10px var(--cell-on-glow),
-            0 0 20px var(--cell-on-glow),
+            0 0 10px color-mix(in srgb, var(--pixel-color, var(--cell-on)) 40%, transparent),
+            0 0 20px color-mix(in srgb, var(--pixel-color, var(--cell-on)) 40%, transparent),
             inset 0 0 10px rgba(255, 255, 255, 0.3);
     }
     50% {
         box-shadow:
-            0 0 15px var(--cell-on-glow),
-            0 0 30px var(--cell-on-glow),
+            0 0 15px color-mix(in srgb, var(--pixel-color, var(--cell-on)) 40%, transparent),
+            0 0 30px color-mix(in srgb, var(--pixel-color, var(--cell-on)) 40%, transparent),
             inset 0 0 15px rgba(255, 255, 255, 0.4);
     }
 }
@@ -1119,6 +1120,194 @@ input[type="color"]:focus-visible {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+}
+
+/* ============================================
+   Finished Button
+   ============================================ */
+
+.btn-finished {
+    background: linear-gradient(135deg, var(--neon-green), #00cc55) !important;
+    border-color: var(--neon-green) !important;
+    color: var(--bg-primary) !important;
+    font-weight: 600 !important;
+}
+
+.btn-finished:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(0, 255, 106, 0.4) !important;
+}
+
+/* ============================================
+   Modal
+   ============================================ */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    padding: var(--space-md);
+    animation: fadeIn var(--transition-normal) forwards;
+}
+
+.modal-overlay[hidden] {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--border-radius-lg);
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp var(--transition-slow) forwards;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--neon-cyan);
+}
+
+.modal-close {
+    color: var(--text-muted);
+}
+
+.modal-close:hover {
+    color: var(--neon-red);
+}
+
+.modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: var(--space-lg);
+}
+
+.modal-info {
+    margin-bottom: var(--space-md);
+}
+
+.modal-info p {
+    margin: var(--space-sm) 0 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.modal-info code {
+    background: var(--bg-elevated);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    color: var(--neon-cyan);
+    font-size: 0.9em;
+}
+
+.modal-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
+}
+
+.modal-stat {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.modal-stat strong {
+    color: var(--neon-magenta);
+}
+
+.code-container {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    overflow: auto;
+    max-height: 400px;
+}
+
+.code-container pre {
+    margin: 0;
+    padding: var(--space-md);
+}
+
+.code-container code {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-primary);
+    white-space: pre;
+    line-height: 1.5;
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--space-sm);
+    justify-content: flex-end;
+    padding: var(--space-md) var(--space-lg);
+    border-top: 1px solid var(--border-subtle);
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 767px) {
+    .modal {
+        max-height: 85vh;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .modal-footer {
+        flex-direction: column;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .code-container {
+        max-height: 250px;
     }
 }
 

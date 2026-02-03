@@ -18,6 +18,7 @@ let currentFrameIndex = 0;
 let scrollInterval = null;
 let scrollingInProgress = false;
 let ledColor = "#00f0ff";
+let animationSpeed = 200; // milliseconds per scroll step
 
 // Undo/Redo stacks
 let undoStack = [];
@@ -82,6 +83,7 @@ function saveToStorage() {
         gridHeight: GRID_HEIGHT,
         orientation: gridOrientation,
         ledColor: ledColor,
+        animationSpeed: animationSpeed,
         frames: frames,
         currentFrameIndex: currentFrameIndex
     };
@@ -102,17 +104,29 @@ function loadFromStorage() {
                 GRID_HEIGHT = data.gridHeight || 8;
                 gridOrientation = data.orientation || "top-left";
                 ledColor = data.ledColor || "#00f0ff";
+                animationSpeed = data.animationSpeed || 200;
                 frames = data.frames;
                 currentFrameIndex = Math.min(data.currentFrameIndex || 0, frames.length - 1);
+
+                // Migrate old format: add color to coords if missing
+                frames.forEach(frame => {
+                    frame.coords = frame.coords.map(pt => ({
+                        row: pt.row,
+                        col: pt.col,
+                        color: pt.color || ledColor
+                    }));
+                });
 
                 // Update UI inputs
                 const widthInput = document.getElementById('grid-width-input');
                 const heightInput = document.getElementById('grid-height-input');
                 const colorPicker = document.getElementById('color-picker');
+                const speedInput = document.getElementById('speed-input');
 
                 if (widthInput) widthInput.value = GRID_WIDTH;
                 if (heightInput) heightInput.value = GRID_HEIGHT;
                 if (colorPicker) colorPicker.value = ledColor;
+                if (speedInput) speedInput.value = animationSpeed;
 
                 updateCellColor(ledColor);
             }
@@ -372,12 +386,21 @@ function handleCellClick(button, index) {
     const existing = activeFrame.coords.findIndex(pt => pt.row === row && pt.col === col);
 
     if (existing >= 0) {
-        activeFrame.coords.splice(existing, 1);
-        button.classList.remove("clicked");
-        button.setAttribute('aria-pressed', 'false');
+        // If clicking same cell with same color, remove it
+        // If clicking with different color, update the color
+        if (activeFrame.coords[existing].color === ledColor) {
+            activeFrame.coords.splice(existing, 1);
+            button.classList.remove("clicked");
+            button.style.removeProperty('--pixel-color');
+            button.setAttribute('aria-pressed', 'false');
+        } else {
+            activeFrame.coords[existing].color = ledColor;
+            button.style.setProperty('--pixel-color', ledColor);
+        }
     } else {
-        activeFrame.coords.push({ row, col });
+        activeFrame.coords.push({ row, col, color: ledColor });
         button.classList.add("clicked");
+        button.style.setProperty('--pixel-color', ledColor);
         button.setAttribute('aria-pressed', 'true');
     }
 
@@ -565,6 +588,7 @@ function applyFrameToGrid() {
 
     buttons.forEach(b => {
         b.classList.remove("clicked");
+        b.style.removeProperty('--pixel-color');
         b.setAttribute('aria-pressed', 'false');
     });
 
@@ -573,6 +597,7 @@ function applyFrameToGrid() {
         const idx = rowColToIndex(pt.row, pt.col);
         if (idx >= 0 && idx < buttons.length) {
             buttons[idx].classList.add("clicked");
+            buttons[idx].style.setProperty('--pixel-color', pt.color || ledColor);
             buttons[idx].setAttribute('aria-pressed', 'true');
         }
     });
@@ -634,9 +659,12 @@ function renderFrameThumbnails() {
                 const cell = document.createElement('div');
                 cell.className = 'frame-thumb-cell';
 
-                // Check if this cell is lit
-                const isLit = frame.coords.some(pt => pt.row === r && pt.col === c);
-                if (isLit) cell.classList.add('on');
+                // Check if this cell is lit and get its color
+                const pixel = frame.coords.find(pt => pt.row === r && pt.col === c);
+                if (pixel) {
+                    cell.classList.add('on');
+                    cell.style.backgroundColor = pixel.color || ledColor;
+                }
 
                 grid.appendChild(cell);
             }
@@ -809,8 +837,8 @@ function startScroll() {
 
     let offset = GRID_WIDTH - minC;
 
-    let delay = parseInt(document.getElementById("delay-input").value, 10);
-    if (isNaN(delay) || delay < 50) delay = 200;
+    let delay = parseInt(document.getElementById("speed-input").value, 10);
+    if (isNaN(delay) || delay < 50) delay = animationSpeed;
 
     scrollInterval = setInterval(() => {
         renderMegaCoords(megaCoords, offset);
@@ -856,7 +884,7 @@ function buildMegaFrame() {
 
         frame.coords.forEach(pt => {
             const newCol = pt.col - minC + currentX;
-            result.push({ row: pt.row, col: newCol });
+            result.push({ row: pt.row, col: newCol, color: pt.color || ledColor });
         });
 
         currentX += width;
@@ -867,7 +895,10 @@ function buildMegaFrame() {
 
 function renderMegaCoords(coords, offset) {
     const buttons = document.querySelectorAll("#grid-container button");
-    buttons.forEach(b => b.classList.remove("clicked"));
+    buttons.forEach(b => {
+        b.classList.remove("clicked");
+        b.style.removeProperty('--pixel-color');
+    });
 
     coords.forEach(pt => {
         const shiftedCol = pt.col + offset;
@@ -875,6 +906,7 @@ function renderMegaCoords(coords, offset) {
             const idx = rowColToIndex(pt.row, shiftedCol);
             if (idx >= 0 && idx < buttons.length) {
                 buttons[idx].classList.add("clicked");
+                buttons[idx].style.setProperty('--pixel-color', pt.color || ledColor);
             }
         }
     });
@@ -912,9 +944,15 @@ function handleImport(event) {
                 GRID_HEIGHT = data.gridSize;
             }
             if (data.orientation) gridOrientation = data.orientation;
+            if (data.animationSpeed) animationSpeed = data.animationSpeed;
+            if (data.ledColor) ledColor = data.ledColor;
 
             frames = data.frames.map((f, i) => ({
-                coords: f.coords || [],
+                coords: (f.coords || []).map(pt => ({
+                    row: pt.row,
+                    col: pt.col,
+                    color: pt.color || data.ledColor || ledColor
+                })),
                 name: f.name || `Frame ${i + 1}`
             }));
 
@@ -959,11 +997,11 @@ function downloadJSON() {
 }
 
 function downloadCSV() {
-    let csv = "frame,row,col\n";
+    let csv = "frame,row,col,color\n";
 
     frames.forEach((frame, frameIdx) => {
         frame.coords.forEach(pt => {
-            csv += `${frameIdx + 1},${pt.row},${pt.col}\n`;
+            csv += `${frameIdx + 1},${pt.row},${pt.col},${pt.color || ledColor}\n`;
         });
     });
 
@@ -971,12 +1009,37 @@ function downloadCSV() {
     showToast("Downloaded frames.csv", 'success');
 }
 
+function updateAnimationSpeed() {
+    const input = document.getElementById("speed-input");
+    const newSpeed = parseInt(input.value, 10);
+
+    if (isNaN(newSpeed) || newSpeed < 50) {
+        input.value = animationSpeed;
+        showToast("Speed must be at least 50ms", 'error');
+        return;
+    }
+
+    if (newSpeed > 2000) {
+        input.value = 2000;
+        animationSpeed = 2000;
+        showToast("Speed set to max 2000ms", 'success');
+        return;
+    }
+
+    animationSpeed = newSpeed;
+
+    // If animation is running, restart with new speed
+    if (scrollingInProgress) {
+        stopScroll();
+        startScroll();
+    }
+}
+
 function downloadRustFile() {
     const w = GRID_WIDTH;
     const h = GRID_HEIGHT;
-    const delayValue = parseInt(document.getElementById("delay-input").value, 10) || 150;
 
-    const rustContent = generateRustCode(delayValue, w, h);
+    const rustContent = generateRustCode(animationSpeed, w, h);
     downloadFile(rustContent, "nm_scroll_frames.rs", "text/plain");
     showToast("Downloaded nm_scroll_frames.rs", 'success');
 }
@@ -987,7 +1050,15 @@ function getExportData() {
         gridHeight: GRID_HEIGHT,
         orientation: gridOrientation,
         ledColor: ledColor,
-        frames: frames.map(f => ({ name: f.name, coords: f.coords }))
+        animationSpeed: animationSpeed,
+        frames: frames.map(f => ({
+            name: f.name,
+            coords: f.coords.map(pt => ({
+                row: pt.row,
+                col: pt.col,
+                color: pt.color
+            }))
+        }))
     };
 }
 
@@ -1005,24 +1076,40 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
+// Helper to convert hex color to RGB components
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 0, g: 240, b: 255 };
+}
+
 function generateRustCode(scrollSpeed, width, height) {
-    let code = `use smart_leds::RGB8;
+    let code = `//! NeoMatrix Frame Animation
+//! Generated by NeoMatrix Frame Creator
+//! https://technical-1.github.io/NeoMatrix-FrameCreator/
+
+use smart_leds::RGB8;
 
 pub const WIDTH: usize = ${width};
 pub const HEIGHT: usize = ${height};
+pub const SCROLL_DELAY_MS: u32 = ${scrollSpeed};
+
+/// Pixel data: (x, y, r, g, b)
+type Pixel = (usize, usize, u8, u8, u8);
 
 pub struct NmScroll {
     strip: [RGB8; WIDTH * HEIGHT],
     frame: isize,
-    color: RGB8,
 }
 
 impl NmScroll {
-    pub fn new(color: RGB8) -> Self {
+    pub fn new() -> Self {
         Self {
             strip: [RGB8::new(0, 0, 0); WIDTH * HEIGHT],
             frame: 0,
-            color,
         }
     }
 
@@ -1032,9 +1119,9 @@ impl NmScroll {
         }
     }
 
-    pub fn set(&mut self, x: usize, y: usize) {
+    pub fn set(&mut self, x: usize, y: usize, color: RGB8) {
         if x < WIDTH && y < HEIGHT {
-            self.strip[y * WIDTH + x] = self.color;
+            self.strip[y * WIDTH + x] = color;
         }
     }
 
@@ -1042,11 +1129,16 @@ impl NmScroll {
         self.strip
     }
 
-    fn draw_frame(&mut self, frame: &[(usize, usize)], offset_x: isize) {
-        for &(x, y) in frame.iter() {
+    /// Get the recommended delay between scroll steps in milliseconds
+    pub fn delay_ms() -> u32 {
+        SCROLL_DELAY_MS
+    }
+
+    fn draw_frame(&mut self, frame: &[Pixel], offset_x: isize) {
+        for &(x, y, r, g, b) in frame.iter() {
             let x_pos = x as isize + offset_x;
             if x_pos >= 0 && x_pos < WIDTH as isize {
-                self.set(x_pos as usize, y);
+                self.set(x_pos as usize, y, RGB8::new(r, g, b));
             }
         }
     }
@@ -1054,11 +1146,14 @@ impl NmScroll {
 
     frames.forEach((frame, i) => {
         const arrItems = frame.coords
-            .map(({ row, col }) => `(${col}, ${row})`)
+            .map(({ row, col, color }) => {
+                const rgb = hexToRgb(color || ledColor);
+                return `(${col}, ${row}, ${rgb.r}, ${rgb.g}, ${rgb.b})`;
+            })
             .join(", ");
         code += `
     // ${frame.name}
-    const FRAME_${i + 1}: &[(usize, usize)] = &[${arrItems}];
+    const FRAME_${i + 1}: &[Pixel] = &[${arrItems}];
 `;
     });
 
@@ -1066,26 +1161,24 @@ impl NmScroll {
     pub fn next(&mut self) {
         self.clear();
 
-        let scroll_increment: isize = ${scrollSpeed};
         let mut current_x: isize = 0;
         let mut total_width: isize = 0;
 
-        let frames_data: [&[(usize, usize)]; ${frames.length}] = [
+        let frames_data: [&[Pixel]; ${frames.length}] = [
 `;
     frames.forEach((_, i) => {
         code += `            FRAME_${i + 1},\n`;
     });
     code += `        ];\n\n`;
 
-    code += `
-        for (i, frame_data) in frames_data.iter().enumerate() {
+    code += `        for (i, frame_data) in frames_data.iter().enumerate() {
             let mut frame_min = isize::MAX;
             let mut frame_max = isize::MIN;
-            for &(x, _y) in (*frame_data).iter() {
-                if x as isize < frame_min { frame_min = x as isize; }
-                if x as isize > frame_max { frame_max = x as isize; }
+            for &(x, _y, _, _, _) in (*frame_data).iter() {
+                if (x as isize) < frame_min { frame_min = x as isize; }
+                if (x as isize) > frame_max { frame_max = x as isize; }
             }
-            let width_of_frame = (frame_max - frame_min + 1);
+            let width_of_frame = frame_max - frame_min + 1;
             let offset_x = (current_x - frame_min) - self.frame;
 
             self.draw_frame(frame_data, offset_x);
@@ -1096,7 +1189,7 @@ impl NmScroll {
             }
         }
 
-        self.frame += scroll_increment;
+        self.frame += 1;
 
         let loop_length = total_width + WIDTH as isize;
         if self.frame >= loop_length {
@@ -1104,9 +1197,294 @@ impl NmScroll {
         }
     }
 }
+
+impl Default for NmScroll {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 `;
 
     return code;
+}
+
+/* ============================================
+   GIF Export
+   ============================================ */
+
+// Simple GIF encoder for LED matrix animations
+// Based on the GIF89a specification
+class GifEncoder {
+    constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.frames = [];
+    }
+
+    addFrame(imageData, delay) {
+        this.frames.push({ imageData, delay });
+    }
+
+    // Build color table from all frames
+    buildColorTable() {
+        const colors = new Map();
+        colors.set('0,0,0', 0); // Black always first (background)
+
+        this.frames.forEach(frame => {
+            const data = frame.imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const key = `${data[i]},${data[i+1]},${data[i+2]}`;
+                if (!colors.has(key)) {
+                    colors.set(key, colors.size);
+                }
+            }
+        });
+
+        // Pad to power of 2
+        const colorCount = Math.max(4, Math.pow(2, Math.ceil(Math.log2(colors.size))));
+        const table = new Uint8Array(colorCount * 3);
+
+        colors.forEach((index, key) => {
+            const [r, g, b] = key.split(',').map(Number);
+            table[index * 3] = r;
+            table[index * 3 + 1] = g;
+            table[index * 3 + 2] = b;
+        });
+
+        return { table, colors, colorBits: Math.ceil(Math.log2(colorCount)) };
+    }
+
+    // LZW compression
+    lzwEncode(pixels, colorBits) {
+        const minCodeSize = Math.max(2, colorBits);
+        const clearCode = 1 << minCodeSize;
+        const eoiCode = clearCode + 1;
+
+        let codeSize = minCodeSize + 1;
+        let nextCode = eoiCode + 1;
+        const maxCode = 4095;
+
+        const dictionary = new Map();
+        for (let i = 0; i < clearCode; i++) {
+            dictionary.set(String(i), i);
+        }
+
+        const output = [];
+        let buffer = 0;
+        let bufferSize = 0;
+
+        const writeCode = (code) => {
+            buffer |= code << bufferSize;
+            bufferSize += codeSize;
+            while (bufferSize >= 8) {
+                output.push(buffer & 0xff);
+                buffer >>= 8;
+                bufferSize -= 8;
+            }
+        };
+
+        writeCode(clearCode);
+
+        let current = String(pixels[0]);
+        for (let i = 1; i < pixels.length; i++) {
+            const next = String(pixels[i]);
+            const combined = current + ',' + next;
+
+            if (dictionary.has(combined)) {
+                current = combined;
+            } else {
+                writeCode(dictionary.get(current));
+
+                if (nextCode <= maxCode) {
+                    dictionary.set(combined, nextCode++);
+                    if (nextCode > (1 << codeSize) && codeSize < 12) {
+                        codeSize++;
+                    }
+                }
+
+                current = next;
+            }
+        }
+
+        writeCode(dictionary.get(current));
+        writeCode(eoiCode);
+
+        if (bufferSize > 0) {
+            output.push(buffer & 0xff);
+        }
+
+        return { data: new Uint8Array(output), minCodeSize };
+    }
+
+    encode() {
+        const { table, colors, colorBits } = this.buildColorTable();
+        const parts = [];
+
+        // Header
+        parts.push(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])); // GIF89a
+
+        // Logical Screen Descriptor
+        const lsd = new Uint8Array(7);
+        lsd[0] = this.width & 0xff;
+        lsd[1] = (this.width >> 8) & 0xff;
+        lsd[2] = this.height & 0xff;
+        lsd[3] = (this.height >> 8) & 0xff;
+        lsd[4] = 0x80 | ((colorBits - 1) << 4) | (colorBits - 1); // Global color table
+        lsd[5] = 0; // Background color index
+        lsd[6] = 0; // Pixel aspect ratio
+        parts.push(lsd);
+
+        // Global Color Table
+        parts.push(table);
+
+        // Netscape Application Extension (for looping)
+        parts.push(new Uint8Array([
+            0x21, 0xff, 0x0b,
+            0x4e, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2e, 0x30, // NETSCAPE2.0
+            0x03, 0x01, 0x00, 0x00, 0x00 // Loop forever
+        ]));
+
+        // Frames
+        this.frames.forEach(frame => {
+            // Graphic Control Extension
+            const delay = Math.round(frame.delay / 10); // Convert ms to centiseconds
+            parts.push(new Uint8Array([
+                0x21, 0xf9, 0x04,
+                0x00, // Disposal method
+                delay & 0xff, (delay >> 8) & 0xff,
+                0x00, // Transparent color index
+                0x00
+            ]));
+
+            // Image Descriptor
+            parts.push(new Uint8Array([
+                0x2c,
+                0x00, 0x00, 0x00, 0x00, // Position
+                this.width & 0xff, (this.width >> 8) & 0xff,
+                this.height & 0xff, (this.height >> 8) & 0xff,
+                0x00 // No local color table
+            ]));
+
+            // Convert image data to indexed pixels
+            const pixels = [];
+            const data = frame.imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const key = `${data[i]},${data[i+1]},${data[i+2]}`;
+                pixels.push(colors.get(key) || 0);
+            }
+
+            // LZW compressed data
+            const { data: lzwData, minCodeSize } = this.lzwEncode(pixels, colorBits);
+            parts.push(new Uint8Array([minCodeSize]));
+
+            // Write in sub-blocks
+            let offset = 0;
+            while (offset < lzwData.length) {
+                const blockSize = Math.min(255, lzwData.length - offset);
+                parts.push(new Uint8Array([blockSize]));
+                parts.push(lzwData.slice(offset, offset + blockSize));
+                offset += blockSize;
+            }
+            parts.push(new Uint8Array([0x00])); // Block terminator
+        });
+
+        // Trailer
+        parts.push(new Uint8Array([0x3b]));
+
+        // Combine all parts
+        const totalLength = parts.reduce((sum, p) => sum + p.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        parts.forEach(part => {
+            result.set(part, offset);
+            offset += part.length;
+        });
+
+        return result;
+    }
+}
+
+function downloadGIF() {
+    if (frames.every(f => f.coords.length === 0)) {
+        showToast("No pixels to export", 'error');
+        return;
+    }
+
+    showToast("Generating GIF...", 'success');
+
+    // Use setTimeout to allow UI to update
+    setTimeout(() => {
+        try {
+            const scale = 10; // Each LED cell is 10x10 pixels in the GIF
+            const gifWidth = GRID_WIDTH * scale;
+            const gifHeight = GRID_HEIGHT * scale;
+
+            const encoder = new GifEncoder(gifWidth, gifHeight);
+            const canvas = document.createElement('canvas');
+            canvas.width = gifWidth;
+            canvas.height = gifHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Build megaframe for scrolling animation
+            const megaCoords = buildMegaFrame();
+
+            if (megaCoords.length === 0) {
+                showToast("No pixels to animate", 'error');
+                return;
+            }
+
+            // Calculate bounds
+            let minC = Infinity, maxC = -Infinity;
+            megaCoords.forEach(pt => {
+                if (pt.col < minC) minC = pt.col;
+                if (pt.col > maxC) maxC = pt.col;
+            });
+
+            const totalScrollSteps = (maxC - minC) + GRID_WIDTH + 1;
+            let offset = GRID_WIDTH - minC;
+
+            // Generate frames for the animation
+            for (let step = 0; step < totalScrollSteps; step++) {
+                // Clear canvas
+                ctx.fillStyle = '#0a0a0f';
+                ctx.fillRect(0, 0, gifWidth, gifHeight);
+
+                // Draw visible pixels
+                megaCoords.forEach(pt => {
+                    const shiftedCol = pt.col + offset;
+                    if (shiftedCol >= 0 && shiftedCol < GRID_WIDTH) {
+                        ctx.fillStyle = pt.color || ledColor;
+                        ctx.fillRect(
+                            shiftedCol * scale,
+                            pt.row * scale,
+                            scale - 1,
+                            scale - 1
+                        );
+                    }
+                });
+
+                encoder.addFrame(ctx.getImageData(0, 0, gifWidth, gifHeight), animationSpeed);
+                offset--;
+            }
+
+            const gifData = encoder.encode();
+            const blob = new Blob([gifData], { type: 'image/gif' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'animation.gif';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast("Downloaded animation.gif", 'success');
+        } catch (e) {
+            console.error('GIF generation error:', e);
+            showToast("Failed to generate GIF", 'error');
+        }
+    }, 100);
 }
 
 /* ============================================
@@ -1132,6 +1510,91 @@ function showToast(message, type = 'success') {
             }
         }, 200);
     }, 2500);
+}
+
+/* ============================================
+   Finished Modal
+   ============================================ */
+
+function showFinishedModal() {
+    const modal = document.getElementById('rust-modal');
+    const codeOutput = document.getElementById('rust-code-output');
+    const statsContainer = document.getElementById('modal-stats');
+
+    // Generate the Rust code
+    const rustCode = generateRustCode(animationSpeed, GRID_WIDTH, GRID_HEIGHT);
+    codeOutput.textContent = rustCode;
+
+    // Calculate stats
+    const totalPixels = frames.reduce((sum, f) => sum + f.coords.length, 0);
+    const uniqueColors = new Set(
+        frames.flatMap(f => f.coords.map(pt => pt.color || ledColor))
+    ).size;
+
+    // Display stats using safe DOM methods
+    statsContainer.textContent = '';
+    const stats = [
+        { value: `${GRID_WIDTH}x${GRID_HEIGHT}`, label: 'grid' },
+        { value: frames.length, label: `frame${frames.length !== 1 ? 's' : ''}` },
+        { value: totalPixels, label: `pixel${totalPixels !== 1 ? 's' : ''}` },
+        { value: uniqueColors, label: `color${uniqueColors !== 1 ? 's' : ''}` },
+        { value: `${animationSpeed}ms`, label: 'speed' }
+    ];
+
+    stats.forEach(stat => {
+        const span = document.createElement('span');
+        span.className = 'modal-stat';
+        const strong = document.createElement('strong');
+        strong.textContent = stat.value;
+        span.appendChild(strong);
+        span.appendChild(document.createTextNode(' ' + stat.label));
+        statsContainer.appendChild(span);
+    });
+
+    // Show modal
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+
+    // Focus trap
+    modal.querySelector('.modal-close').focus();
+
+    // Close on escape
+    document.addEventListener('keydown', handleModalEscape);
+
+    // Close on click outside
+    modal.addEventListener('click', handleModalClickOutside);
+}
+
+function handleModalClickOutside(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+        closeRustModal();
+    }
+}
+
+function closeRustModal() {
+    const modal = document.getElementById('rust-modal');
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', handleModalEscape);
+    modal.removeEventListener('click', handleModalClickOutside);
+}
+
+function handleModalEscape(e) {
+    if (e.key === 'Escape') {
+        closeRustModal();
+    }
+}
+
+function copyRustCode() {
+    const codeOutput = document.getElementById('rust-code-output');
+    navigator.clipboard.writeText(codeOutput.textContent)
+        .then(() => showToast("Copied to clipboard!", 'success'))
+        .catch(() => showToast("Failed to copy", 'error'));
+}
+
+function downloadRustFromModal() {
+    downloadRustFile();
+    closeRustModal();
 }
 
 /* ============================================

@@ -164,9 +164,9 @@
 
             <!-- Animation Controls -->
             <div class="toolbar-group">
-                <label class="toolbar-label" for="delay-input">Delay</label>
+                <label class="toolbar-label" for="speed-input">Speed</label>
                 <div class="input-with-unit">
-                    <input type="number" id="delay-input" value="200" min="50" max="2000" step="50" aria-label="Animation delay in milliseconds"/>
+                    <input type="number" id="speed-input" value="200" min="50" max="2000" step="50" aria-label="Animation speed in milliseconds per step" onchange="updateAnimationSpeed()"/>
                     <span class="input-unit">ms</span>
                 </div>
                 <button class="btn btn-play" id="play-btn" onclick="toggleScroll()" aria-label="Play animation" title="Play/Stop">
@@ -243,7 +243,20 @@
                 </svg>
                 <span>CSV</span>
             </button>
-            <button class="btn btn-primary btn-export" onclick="downloadRustFile()" title="Download Rust source file">
+            <button class="btn btn-export" onclick="downloadGIF()" title="Download animation as GIF">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                    <line x1="7" y1="2" x2="7" y2="22"/>
+                    <line x1="17" y1="2" x2="17" y2="22"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <line x1="2" y1="7" x2="7" y2="7"/>
+                    <line x1="2" y1="17" x2="7" y2="17"/>
+                    <line x1="17" y1="17" x2="22" y2="17"/>
+                    <line x1="17" y1="7" x2="22" y2="7"/>
+                </svg>
+                <span>GIF</span>
+            </button>
+            <button class="btn btn-export" onclick="downloadRustFile()" title="Download Rust source file">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
@@ -251,6 +264,12 @@
                     <line x1="16" y1="17" x2="8" y2="17"/>
                 </svg>
                 <span>Rust</span>
+            </button>
+            <button class="btn btn-finished btn-export" onclick="showFinishedModal()" title="View complete Rust code">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Finished</span>
             </button>
         </div>
     </footer>
@@ -260,6 +279,47 @@
 
     <!-- Toast notification container -->
     <div class="toast-container" id="toast-container" aria-live="assertive"></div>
+
+    <!-- Rust Code Modal -->
+    <div class="modal-overlay" id="rust-modal" hidden>
+        <div class="modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+            <div class="modal-header">
+                <h2 id="modal-title">Rust Animation Code</h2>
+                <button class="btn btn-icon modal-close" onclick="closeRustModal()" aria-label="Close modal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info">
+                    <div class="modal-stats" id="modal-stats"></div>
+                    <p>Copy this code into your Rust project. Use <code>NmScroll::delay_ms()</code> to get the animation speed.</p>
+                </div>
+                <div class="code-container">
+                    <pre><code id="rust-code-output"></code></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="copyRustCode()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy Code
+                </button>
+                <button class="btn btn-primary" onclick="downloadRustFromModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download .rs File
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

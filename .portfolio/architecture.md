@@ -28,14 +28,24 @@ flowchart TB
         Renderer["Renderer<br/>- renderMegaCoords()<br/>- applyFrameToGrid()"]
     end
 
+    subgraph StateManagement["State Management"]
+        UndoRedo["Undo/Redo System<br/>- saveState()<br/>- undo() / redo()"]
+        Autosave["LocalStorage Autosave<br/>- saveToStorage()<br/>- loadFromStorage()"]
+    end
+
     subgraph Export["Export System"]
         JSONExport["JSON Export<br/>- copyCoordinates()<br/>- downloadJSON()"]
+        CSVExport["CSV Export<br/>- downloadCSV()"]
+        GIFExport["GIF Export<br/>- GifEncoder class<br/>- downloadGIF()"]
         RustExport["Rust Code Generator<br/>- downloadRustFile()<br/>- generateRustCode()"]
+        ImportSystem["JSON Import<br/>- handleImport()"]
     end
 
     subgraph Output["Output Targets"]
         Clipboard["Clipboard<br/>(JSON)"]
         JSONFile["frames.json"]
+        CSVFile["frames.csv"]
+        GIFFile["animation.gif"]
         RustFile["nm_scroll_frames.rs"]
         LEDMatrix["WS2812 LED Matrix<br/>(Hardware Target)"]
     end
@@ -45,14 +55,19 @@ flowchart TB
     JS --> CoreLogic
     JS --> Animation
     JS --> Export
+    JS --> StateManagement
 
     UserInterface --> CoreLogic
     CoreLogic --> CoordSystem
     CoordSystem --> Animation
     FrameManager --> Animation
+    StateManagement --> CoreLogic
 
+    ImportSystem --> CoreLogic
     Export --> Clipboard
     Export --> JSONFile
+    Export --> CSVFile
+    Export --> GIFFile
     Export --> RustFile
     RustFile -.-> LEDMatrix
 ```
@@ -75,14 +90,14 @@ I chose not to use React, Vue, or any frontend framework. For a tool this focuse
 
 The trade-off is more manual DOM manipulation, but for a single-purpose tool, this is acceptable.
 
-#### 2. In-Memory State Management
+#### 2. State Management with Autosave
 
-All frame data lives in a simple JavaScript array structure:
+All frame data lives in a simple JavaScript array structure with per-pixel color support:
 ```javascript
-let frames = [{ coords: [], name: "Frame 1" }];
+let frames = [{ coords: [{ row: 0, col: 1, color: "#00f0ff" }], name: "Frame 1" }];
 ```
 
-I avoided localStorage persistence intentionally. Frame designs are meant to be exported, not saved in the browser. This keeps the mental model simple: design, export, use in your hardware project.
+State is automatically persisted to localStorage every 30 seconds and on page unload, so users never lose work between sessions. A 50-step undo/redo stack (Ctrl+Z/Ctrl+Y) provides full editing history. JSON import allows loading previously exported projects back into the editor.
 
 #### 3. Coordinate System Abstraction
 
@@ -91,9 +106,11 @@ The `indexToRowCol()` and `rowColToIndex()` functions form a crucial abstraction
 #### 4. Rust Code Generation
 
 Rather than just exporting data, I generate complete, compilable Rust code. This was a deliberate choice for the target audience (University of Florida Computer Engineering students working with embedded Rust). The generated code includes:
-- Proper struct definitions
-- Memory-efficient static arrays
-- A working animation loop
+- Proper struct definitions with `NmScroll` struct
+- Per-pixel RGB color data in static arrays (each pixel stores its own color)
+- A working scrolling animation loop with configurable delay
+- `clear()`, `set()`, `draw_frame()`, and `next()` methods
+- `Default` trait implementation
 
 This reduces the barrier from "I have coordinate data" to "I have working code."
 
@@ -103,14 +120,15 @@ The scrolling preview uses a "megaframe" approach where all frames are concatena
 
 ### Data Flow
 
-1. **User Input**: Clicks on grid cells toggle coordinates in the active frame
-2. **State Update**: The `frames` array is modified directly
-3. **Visual Feedback**: `applyFrameToGrid()` syncs UI with state
-4. **Export**: Frame data is serialized to JSON or transformed into Rust code
+1. **User Input**: Clicks on grid cells toggle coordinates in the active frame (each pixel stores its own color)
+2. **State Snapshot**: `saveState()` pushes a deep copy to the undo stack before each mutation
+3. **State Update**: The `frames` array is modified directly
+4. **Visual Feedback**: `applyFrameToGrid()` syncs UI with state, applying per-pixel `--pixel-color` CSS custom properties
+5. **Autosave**: State is periodically serialized to localStorage
+6. **Export**: Frame data is serialized to JSON, CSV, animated GIF, or transformed into Rust code
 
 ### Limitations
 
-- No undo/redo functionality (would require implementing a command pattern)
-- No import capability (designed as one-way export tool)
-- Grid size changes clear all frames (simplifies state management but loses work)
-- Single color only in preview (hardware can have any color; this is a preview limitation)
+- Grid size changes clear all frames (by design, to avoid coordinate conflicts)
+- Mobile drag-and-drop for frame reordering may be less intuitive than desktop
+- GIF export can be slow for very large grids or many frames due to client-side LZW encoding

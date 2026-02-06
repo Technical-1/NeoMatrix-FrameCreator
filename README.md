@@ -151,13 +151,18 @@ python -m http.server 8000
 ### Project Structure
 
 ```
-├── index.html          # Main HTML with SEO meta tags
-├── style.css           # Dark neon theme (~1300 lines)
-├── script.js           # All application logic (~1600 lines)
-├── favicon.svg         # SVG favicon
-├── og-image.png        # Social media preview image
-├── generate-pngs.js    # Node.js script for asset generation
-└── CLAUDE.md           # AI assistant instructions
+├── index.html            # Main HTML with SEO meta tags
+├── style.css             # Dark neon theme (~1340 lines)
+├── script.js             # All application logic (~1660 lines)
+├── favicon.svg           # SVG favicon
+├── og-image.png          # Social media preview image (1200×630)
+├── og-image.svg          # SVG source for OG image
+├── apple-touch-icon.png  # iOS home screen icon
+├── generate-pngs.js      # Node.js script for PNG asset generation
+├── generate-assets.html  # Browser-based asset generator
+├── package.json          # Dev dependency (canvas) for asset gen
+├── CLAUDE.md             # AI assistant instructions
+└── .portfolio/           # Project documentation
 ```
 
 ### Regenerating Assets
@@ -173,8 +178,4 @@ node generate-pngs.js
 
 Originally designed for the final project in the University of Florida class CEN4907C (Computer Engineering Design 1) for WS2812 LED matrix projects.
 
----
 
-## License
-
-ISC License — see [LICENSE](LICENSE) for details.

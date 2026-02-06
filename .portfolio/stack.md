@@ -31,22 +31,22 @@ I deliberately chose not to use any frontend framework (React, Vue, Angular, etc
 - Eliminates hosting costs and complexity
 - Works offline once loaded
 
-## Database
+## Persistence
 
-**None** - Data is stored in JavaScript memory during the session.
+**localStorage** — All state is automatically saved to `localStorage` every 30 seconds and on page unload, then restored on next visit.
 
 ### Data Structure
 
 ```javascript
 let frames = [
   {
-    coords: [{ row: 0, col: 1 }, { row: 0, col: 2 }],
+    coords: [{ row: 0, col: 1, color: "#00f0ff" }, { row: 0, col: 2, color: "#ff00aa" }],
     name: "Frame 1"
   }
 ];
 ```
 
-I considered localStorage for session persistence but decided against it. The workflow is: design frames, export code, close browser. Persistence would add complexity without matching the use case.
+Each pixel stores its own color, enabling multi-color designs within a single frame. The autosave system persists grid dimensions, orientation, LED color, animation speed, frame data, and current frame index.
 
 ## Infrastructure & Deployment
 
@@ -65,13 +65,13 @@ I considered localStorage for session persistence but decided against it. The wo
 
 ## Key Dependencies
 
-**None** - This project has zero external dependencies.
+**Zero runtime dependencies** — The application itself has no external dependencies. The only dev dependency is `canvas` (v3.2.1) used by `generate-pngs.js` for server-side PNG asset generation (favicons, OG images).
 
-### Why Zero Dependencies?
+### Why Zero Runtime Dependencies?
 
-1. **Security**: No supply chain attack vectors
+1. **Security**: No supply chain attack vectors in production
 2. **Longevity**: No risk of abandoned packages breaking the build
-3. **Simplicity**: No `node_modules`, no `package.json`, no version conflicts
+3. **Simplicity**: No bundler, no transpiler, no version conflicts
 4. **Performance**: No library code to download or parse
 
 ### What I Wrote Instead of Using Libraries
@@ -82,6 +82,7 @@ I considered localStorage for session persistence but decided against it. The wo
 | Lodash | Native array methods (`map`, `filter`, `forEach`) |
 | FileSaver.js | Native Blob API with `URL.createObjectURL` |
 | Clipboard.js | Native `navigator.clipboard.writeText` |
+| gif.js / gifenc | Custom `GifEncoder` class with LZW compression (~190 lines) |
 
 ## Browser Compatibility
 
@@ -90,7 +91,12 @@ The application uses modern JavaScript features:
 - Arrow functions
 - Template literals
 - `navigator.clipboard` API
-- CSS Grid
+- CSS Grid and CSS custom properties (dynamic per-pixel colors)
+- Canvas 2D API (GIF rendering)
+- localStorage API (autosave)
+- FileReader API (JSON import)
+- HTML5 Drag and Drop API (frame reordering)
+- Blob/URL.createObjectURL (file downloads)
 
 **Supported Browsers**: Chrome 66+, Firefox 63+, Safari 13.1+, Edge 79+
 

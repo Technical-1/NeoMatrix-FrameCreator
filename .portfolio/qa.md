@@ -41,37 +41,43 @@ Clicked cells light up in their chosen color with a neon glow effect, the origin
 
 ## Technical Highlights
 
-### Challenge: Coordinate System Mapping
-LED matrices have different physical wiring orientations. A pixel at visual position (2,3) might be at hardware position (5,2) depending on how the matrix is wired.
+### Orientation-agnostic coordinate system
+WS2812 matrices can be wired with the origin in any of four corners, and the visual editor must match the user's physical board. The mapping is centralized in `indexToRowCol()` and `rowColToIndex()` in `script.js`, with a single switch over the four orientation modes. Every other module — the click handler, the renderer, the Rust code generator — works in logical (row, col) space, so adding a new wiring layout would mean changing one function rather than every consumer.
 
-**Solution**: I created bidirectional mapping functions (`indexToRowCol` and `rowColToIndex`) with a switch statement handling all four orientations. This abstraction keeps the rest of the code orientation-agnostic.
+### Custom GIF89a encoder, no library
+GIF export is produced by a hand-written `GifEncoder` class (~190 lines in `script.js`) that emits a complete GIF89a stream: global color table, Netscape Application Extension for looping, LZW compression with variable code sizes, and sub-block framing. Each frame is drawn to an off-screen Canvas 2D context with outer glow, inner glow, and specular highlight passes, then pixels are quantized against a palette built from the colors actually used. Bundling `gif.js` would have added ~30KB and another supply-chain surface; the inline encoder keeps the project at zero runtime dependencies.
 
-### Challenge: Rust Code Generation
-Generating syntactically correct Rust code from JavaScript required careful string templating.
+### Per-pixel color via CSS custom properties
+Each cell carries a `--pixel-color` CSS variable set inline, which the stylesheet reads through `color-mix()` to produce the neon glow without per-pixel JavaScript animation. Toggling a class and updating a custom property is one of the cheapest things the browser style engine does, so animation stays smooth on 64×64 grids without any canvas fallback. The frame data structure stores `{ row, col, color }` per pixel, and `applyFrameToGrid()` syncs DOM state from this array.
 
-**Solution**: The `generateRustCode()` function builds a complete Rust module using template literals. It includes:
-- Proper const definitions for frame data
-- A `NmScroll` struct with methods
-- Bounding-box calculations for efficient scrolling
-- Type-safe array declarations
+### Rust code generation that actually compiles
+`generateRustCode()` emits a complete module — `NmScroll` struct, `next()` scrolling loop, `delay_ms()` helper, and per-pixel `(usize, usize, u8, u8, u8)` frame data — usable as a drop-in `src/` file with the `smart_leds` crate. Bounding-box logic in the generator avoids emitting empty columns, which keeps scroll timing predictable on hardware. The output matches the interface used in the UF CEN4907C course project, so a student can go from grid clicks to working firmware without rewriting any glue code.
 
-### Challenge: Animation Preview Performance
-Animating a grid of DOM elements could cause jank.
+## Engineering Decisions
 
-**Solution**: Instead of moving elements, I toggle CSS classes and set per-pixel `--pixel-color` CSS custom properties. The browser's style recalculation is highly optimized for class and custom property changes, keeping animations smooth even on larger grids with multiple colors.
+### No frontend framework
+- **Constraint**: The tool is for engineering students who may not have Node.js set up, and it has to keep working on GitHub Pages with zero maintenance.
+- **Options**: React + Vite, Svelte, or vanilla JS.
+- **Choice**: Vanilla HTML/CSS/JS, one HTML file plus one script and one stylesheet.
+- **Why**: No build step means anyone can fork, edit, and host the result instantly. The app has a single screen and a clear data model, so the DOM-manipulation overhead is small.
 
-### Challenge: Client-Side GIF Encoding
-I needed animated GIF export without any external library dependency.
+### Zero runtime dependencies, including for GIF encoding
+- **Constraint**: GIF export was a hard requirement, and so was avoiding supply-chain risk on a tool that lives indefinitely on GitHub Pages.
+- **Options**: `gif.js` / `gifenc`, server-side encoding, or a custom encoder.
+- **Choice**: Hand-written GIF89a encoder in `script.js`.
+- **Why**: ~190 lines bought independence from external packages forever. The encoder is scoped to exactly what this app needs (small palettes, modest frame counts), so it does not need to compete with full-featured libraries on edge cases.
 
-**Solution**: I wrote a complete GIF89a encoder (~190 lines) that handles the full spec: global color table construction, LZW compression with variable code sizes, Netscape Application Extension for looping, and sub-block framing. The encoder renders each animation frame to a Canvas 2D context with LED glow effects (outer glow, inner glow, specular highlight), then quantizes pixels against a dynamically built color palette.
+### Rust output instead of generic data
+- **Constraint**: The target audience writes embedded Rust against the `smart_leds` crate; raw JSON would still require them to write a parser.
+- **Options**: Export only JSON/CSV, export multiple language targets, or generate one tightly-targeted Rust module.
+- **Choice**: Generate a complete Rust file matching the course's `NmScroll` interface; keep JSON/CSV as secondary exports.
+- **Why**: Closing the loop between "I drew a pattern" and "my firmware compiles" is the actual user value. C/Arduino output would be straightforward to add later but was not needed.
 
-### Challenge: Per-Pixel Color Support
-The original design used a single global color. Supporting multi-color designs required changes across the entire data flow.
-
-**Solution**: Each coordinate now stores its own `color` property. The grid cells use a CSS custom property `--pixel-color` set via inline styles, which the `color-mix()` function references for glow effects. The Rust code generator maps each pixel's hex color to RGB components using `hexToRgb()`. A migration path handles loading old single-color saves by backfilling the global `ledColor`.
-
-### Innovative Approach: Zero-Dependency Architecture
-I intentionally avoided all runtime dependencies. This eliminates supply chain risks, ensures the tool works indefinitely without maintenance, and allows instant forking/modification by students.
+### LocalStorage autosave over server persistence
+- **Constraint**: No user accounts, no hosting cost, but work must survive accidental refreshes.
+- **Options**: Backend with accounts, IndexedDB, or localStorage.
+- **Choice**: localStorage with a 30-second interval plus a `beforeunload` flush; JSON export for permanent saves.
+- **Why**: The data is small (a few KB even with many frames) and short-lived. Adding a backend would dominate the project's complexity for marginal benefit.
 
 ## Frequently Asked Questions
 

@@ -161,7 +161,6 @@ python -m http.server 8000
 ├── generate-pngs.js      # Node.js script for PNG asset generation
 ├── generate-assets.html  # Browser-based asset generator
 ├── package.json          # Dev dependency (canvas) for asset gen
-├── CLAUDE.md             # AI assistant instructions
 └── .portfolio/           # Project documentation
 ```
 

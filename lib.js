@@ -57,6 +57,13 @@
         return hex.charAt(0) === '#' ? hex : '#' + hex;
     }
 
+    function parseHexColor(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result
+            ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
+            : { r: 0, g: 240, b: 255 };
+    }
+
     // --- Import validation ---
 
     function clampDimension(value, fallback) {
@@ -105,5 +112,5 @@
 
     const VERSION = '1.0.0';
 
-    return { VERSION, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, clampDimension, validateImportedData };
+    return { VERSION, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData };
 });

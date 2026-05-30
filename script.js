@@ -105,7 +105,7 @@ function loadFromStorage() {
                 GRID_WIDTH = data.gridWidth || 8;
                 GRID_HEIGHT = data.gridHeight || 8;
                 gridOrientation = data.orientation || "top-left";
-                ledColor = data.ledColor || "#00f0ff";
+                ledColor = normalizeColor(data.ledColor, "#00f0ff");
                 animationSpeed = data.animationSpeed || 200;
                 frames = data.frames;
                 currentFrameIndex = Math.min(data.currentFrameIndex || 0, frames.length - 1);
@@ -273,12 +273,10 @@ function setupColorPicker() {
 
 function updateCellColor(color) {
     const root = document.documentElement;
-    root.style.setProperty('--cell-on', color);
+    const safe = normalizeColor(color, '#00f0ff');
+    root.style.setProperty('--cell-on', safe);
 
-    // Calculate glow color with opacity
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
+    const { r, g, b } = parseHexColor(safe);
     root.style.setProperty('--cell-on-glow', `rgba(${r}, ${g}, ${b}, 0.4)`);
 }
 
@@ -1027,15 +1025,6 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
-// Helper to convert hex color to RGB components
-function hexToRgb(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-    } : { r: 0, g: 240, b: 255 };
-}
 
 function generateRustCode(scrollSpeed, width, height) {
     let code = `//! NeoMatrix Frame Animation
@@ -1098,7 +1087,7 @@ impl NmScroll {
     frames.forEach((frame, i) => {
         const arrItems = frame.coords
             .map(({ row, col, color }) => {
-                const rgb = hexToRgb(color || ledColor);
+                const rgb = parseHexColor(color || ledColor);
                 return `(${col}, ${row}, ${rgb.r}, ${rgb.g}, ${rgb.b})`;
             })
             .join(", ");

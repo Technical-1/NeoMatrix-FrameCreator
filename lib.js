@@ -12,6 +12,13 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
+    // --- Rust code generation helpers ---
+
+    function sanitizeFrameName(name) {
+        const str = (name === null || name === undefined) ? '' : String(name);
+        return str.replace(/[\r\n\x00-\x1F]+/g, ' ').trim();
+    }
+
     // --- Coordinate geometry (corner-reflection origins) ---
 
     function indexToRowCol(index, width, height, orientation) {
@@ -177,5 +184,5 @@
 
     const VERSION = '1.0.0';
 
-    return { VERSION, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
+    return { VERSION, sanitizeFrameName, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
 });

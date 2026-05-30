@@ -1092,7 +1092,7 @@ impl NmScroll {
             })
             .join(", ");
         code += `
-    // ${frame.name}
+    // ${sanitizeFrameName(frame.name)}
     const FRAME_${i + 1}: &'static [Pixel] = &[${arrItems}];
 `;
     });

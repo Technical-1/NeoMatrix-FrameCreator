@@ -66,13 +66,15 @@
     }
 
     function validateImportedData(data, defaults) {
-        if (!data || typeof data !== 'object') {
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
             throw new Error('Invalid format: not an object');
         }
         if (!Array.isArray(data.frames) || data.frames.length === 0) {
             throw new Error('Invalid format: frames must be a non-empty array');
         }
 
+        // Use `!= null` (not truthiness) so an explicit 0 is treated as provided
+        // and clamped to the 1-64 range, rather than silently keeping the default.
         let width = defaults.gridWidth;
         let height = defaults.gridHeight;
         if (data.gridSize != null) { width = data.gridSize; height = data.gridSize; } // legacy square grids

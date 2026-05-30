@@ -31,6 +31,9 @@ const STORAGE_KEY = 'neomatrix-autosave';
 // Guard against double-initialization (script is a non-deferred classic script)
 let appInitialized = false;
 
+// Cached grid button elements; rebuilt by createGrid()
+let gridButtons = [];
+
 /* ============================================
    Initialization
    ============================================ */
@@ -353,6 +356,7 @@ function createGrid() {
 
     // Create buttons
     const totalCells = GRID_WIDTH * GRID_HEIGHT;
+    gridButtons = [];
     for (let i = 0; i < totalCells; i++) {
         const btn = document.createElement("button");
         const { row, col } = indexToRowCol(i, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
@@ -369,6 +373,7 @@ function createGrid() {
         btn.addEventListener('touchend', () => btn.classList.remove('touching'), { passive: true });
 
         container.appendChild(btn);
+        gridButtons.push(btn);
     }
 
     highlightCornerButton();
@@ -584,7 +589,7 @@ function clearClickedButtons() {
 }
 
 function applyFrameToGrid() {
-    const buttons = document.querySelectorAll("#grid-container button");
+    const buttons = gridButtons;
 
     buttons.forEach(b => {
         b.classList.remove("clicked");
@@ -850,7 +855,7 @@ function buildMegaFrame() {
 }
 
 function renderMegaCoords(coords, offset) {
-    const buttons = document.querySelectorAll("#grid-container button");
+    const buttons = gridButtons;
     buttons.forEach(b => {
         b.classList.remove("clicked");
         b.style.removeProperty('--pixel-color');

@@ -355,7 +355,7 @@ function createGrid() {
     const totalCells = GRID_WIDTH * GRID_HEIGHT;
     for (let i = 0; i < totalCells; i++) {
         const btn = document.createElement("button");
-        const { row, col } = indexToRowCol(i);
+        const { row, col } = indexToRowCol(i, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
 
         btn.setAttribute('role', 'gridcell');
         btn.setAttribute('aria-label', `Cell row ${row}, column ${col}`);
@@ -380,7 +380,7 @@ function handleCellClick(button, index) {
     // Save state for undo
     saveState();
 
-    const { row, col } = indexToRowCol(index);
+    const { row, col } = indexToRowCol(index, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
     const activeFrame = frames[currentFrameIndex];
 
     const existing = activeFrame.coords.findIndex(pt => pt.row === row && pt.col === col);
@@ -472,7 +472,7 @@ function highlightCornerButton() {
 
     const totalCells = GRID_WIDTH * GRID_HEIGHT;
     for (let i = 0; i < totalCells; i++) {
-        const coords = indexToRowCol(i);
+        const coords = indexToRowCol(i, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
         if (coords.row === 0 && coords.col === 0) {
             if (buttons[i]) buttons[i].classList.add("corner-dot");
             break;
@@ -594,7 +594,7 @@ function applyFrameToGrid() {
 
     const active = frames[currentFrameIndex];
     active.coords.forEach(pt => {
-        const idx = rowColToIndex(pt.row, pt.col);
+        const idx = rowColToIndex(pt.row, pt.col, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
         if (idx >= 0 && idx < buttons.length) {
             buttons[idx].classList.add("clicked");
             buttons[idx].style.setProperty('--pixel-color', pt.color || ledColor);
@@ -754,50 +754,6 @@ function handleDragEnd(e) {
    Orientation Mapping
    ============================================ */
 
-function indexToRowCol(index) {
-    switch (gridOrientation) {
-        case "top-left":
-            return {
-                row: Math.floor(index / GRID_WIDTH),
-                col: index % GRID_WIDTH
-            };
-        case "top-right":
-            return {
-                row: (GRID_WIDTH - 1) - (index % GRID_WIDTH),
-                col: Math.floor(index / GRID_WIDTH)
-            };
-        case "bottom-left":
-            return {
-                row: index % GRID_WIDTH,
-                col: (GRID_HEIGHT - 1) - Math.floor(index / GRID_WIDTH)
-            };
-        case "bottom-right":
-            return {
-                row: (GRID_HEIGHT - 1) - Math.floor(index / GRID_WIDTH),
-                col: (GRID_WIDTH - 1) - (index % GRID_WIDTH)
-            };
-        default:
-            return {
-                row: Math.floor(index / GRID_WIDTH),
-                col: index % GRID_WIDTH
-            };
-    }
-}
-
-function rowColToIndex(r, c) {
-    switch (gridOrientation) {
-        case "top-left":
-            return r * GRID_WIDTH + c;
-        case "top-right":
-            return (GRID_WIDTH - 1 - c) * GRID_WIDTH + r;
-        case "bottom-left":
-            return c * GRID_WIDTH + (GRID_HEIGHT - 1 - r);
-        case "bottom-right":
-            return (GRID_HEIGHT - 1 - r) * GRID_WIDTH + (GRID_WIDTH - 1 - c);
-        default:
-            return r * GRID_WIDTH + c;
-    }
-}
 
 /* ============================================
    Scrolling Animation
@@ -903,7 +859,7 @@ function renderMegaCoords(coords, offset) {
     coords.forEach(pt => {
         const shiftedCol = pt.col + offset;
         if (shiftedCol >= 0 && shiftedCol < GRID_WIDTH) {
-            const idx = rowColToIndex(pt.row, shiftedCol);
+            const idx = rowColToIndex(pt.row, shiftedCol, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
             if (idx >= 0 && idx < buttons.length) {
                 buttons[idx].classList.add("clicked");
                 buttons[idx].style.setProperty('--pixel-color', pt.color || ledColor);

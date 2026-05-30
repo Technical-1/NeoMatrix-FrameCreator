@@ -886,40 +886,33 @@ function handleImport(event) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-
-            if (!data.frames || !Array.isArray(data.frames)) {
-                throw new Error('Invalid format: missing frames array');
-            }
+            const normalized = validateImportedData(data, {
+                gridWidth: GRID_WIDTH,
+                gridHeight: GRID_HEIGHT,
+                orientation: gridOrientation,
+                ledColor: ledColor,
+                animationSpeed: animationSpeed
+            });
 
             saveState();
 
-            // Load data
-            if (data.gridWidth) GRID_WIDTH = data.gridWidth;
-            if (data.gridHeight) GRID_HEIGHT = data.gridHeight;
-            if (data.gridSize) {
-                // Legacy support for square grids
-                GRID_WIDTH = data.gridSize;
-                GRID_HEIGHT = data.gridSize;
-            }
-            if (data.orientation) gridOrientation = data.orientation;
-            if (data.animationSpeed) animationSpeed = data.animationSpeed;
-            if (data.ledColor) ledColor = data.ledColor;
-
-            frames = data.frames.map((f, i) => ({
-                coords: (f.coords || []).map(pt => ({
-                    row: pt.row,
-                    col: pt.col,
-                    color: pt.color || data.ledColor || ledColor
-                })),
-                name: f.name || `Frame ${i + 1}`
-            }));
-
+            GRID_WIDTH = normalized.gridWidth;
+            GRID_HEIGHT = normalized.gridHeight;
+            gridOrientation = normalized.orientation;
+            ledColor = normalized.ledColor;
+            animationSpeed = normalized.animationSpeed;
+            frames = normalized.frames;
             currentFrameIndex = 0;
 
-            // Update UI
             document.getElementById('grid-width-input').value = GRID_WIDTH;
             document.getElementById('grid-height-input').value = GRID_HEIGHT;
+            const colorPicker = document.getElementById('color-picker');
+            if (colorPicker) colorPicker.value = ledColor;
+            const speedInput = document.getElementById('speed-input');
+            if (speedInput) speedInput.value = animationSpeed;
+
             updateOrientationButtons();
+            updateCellColor(ledColor);
             createGrid();
             renderFrameThumbnails();
 

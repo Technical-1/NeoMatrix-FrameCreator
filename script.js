@@ -1194,68 +1194,6 @@ class GifEncoder {
         return { table, colors, colorBits: Math.ceil(Math.log2(colorCount)) };
     }
 
-    // LZW compression
-    lzwEncode(pixels, colorBits) {
-        const minCodeSize = Math.max(2, colorBits);
-        const clearCode = 1 << minCodeSize;
-        const eoiCode = clearCode + 1;
-
-        let codeSize = minCodeSize + 1;
-        let nextCode = eoiCode + 1;
-        const maxCode = 4095;
-
-        const dictionary = new Map();
-        for (let i = 0; i < clearCode; i++) {
-            dictionary.set(String(i), i);
-        }
-
-        const output = [];
-        let buffer = 0;
-        let bufferSize = 0;
-
-        const writeCode = (code) => {
-            buffer |= code << bufferSize;
-            bufferSize += codeSize;
-            while (bufferSize >= 8) {
-                output.push(buffer & 0xff);
-                buffer >>= 8;
-                bufferSize -= 8;
-            }
-        };
-
-        writeCode(clearCode);
-
-        let current = String(pixels[0]);
-        for (let i = 1; i < pixels.length; i++) {
-            const next = String(pixels[i]);
-            const combined = current + ',' + next;
-
-            if (dictionary.has(combined)) {
-                current = combined;
-            } else {
-                writeCode(dictionary.get(current));
-
-                if (nextCode <= maxCode) {
-                    dictionary.set(combined, nextCode++);
-                    if (nextCode > (1 << codeSize) && codeSize < 12) {
-                        codeSize++;
-                    }
-                }
-
-                current = next;
-            }
-        }
-
-        writeCode(dictionary.get(current));
-        writeCode(eoiCode);
-
-        if (bufferSize > 0) {
-            output.push(buffer & 0xff);
-        }
-
-        return { data: new Uint8Array(output), minCodeSize };
-    }
-
     encode() {
         const { table, colors, colorBits } = this.buildColorTable();
         const parts = [];
@@ -1314,7 +1252,7 @@ class GifEncoder {
             }
 
             // LZW compressed data
-            const { data: lzwData, minCodeSize } = this.lzwEncode(pixels, colorBits);
+            const { data: lzwData, minCodeSize } = gifLzwEncode(pixels, colorBits);
             parts.push(new Uint8Array([minCodeSize]));
 
             // Write in sub-blocks

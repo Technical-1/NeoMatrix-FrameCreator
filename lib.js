@@ -64,6 +64,71 @@
             : { r: 0, g: 240, b: 255 };
     }
 
+    // --- GIF LZW compression (variable-width, LSB-first) ---
+
+    function gifLzwEncode(pixels, colorBits) {
+        const minCodeSize = Math.max(2, colorBits);
+        const clearCode = 1 << minCodeSize;
+        const eoiCode = clearCode + 1;
+
+        let codeSize = minCodeSize + 1;
+        let nextCode = eoiCode + 1;
+        const maxCode = 4095;
+
+        const dictionary = new Map();
+        for (let i = 0; i < clearCode; i++) {
+            dictionary.set(String(i), i);
+        }
+
+        const output = [];
+        let buffer = 0;
+        let bufferSize = 0;
+
+        const writeCode = (code) => {
+            buffer |= code << bufferSize;
+            bufferSize += codeSize;
+            while (bufferSize >= 8) {
+                output.push(buffer & 0xff);
+                buffer >>= 8;
+                bufferSize -= 8;
+            }
+        };
+
+        writeCode(clearCode);
+
+        let current = String(pixels[0]);
+        for (let i = 1; i < pixels.length; i++) {
+            const next = String(pixels[i]);
+            const combined = current + ',' + next;
+
+            if (dictionary.has(combined)) {
+                current = combined;
+            } else {
+                writeCode(dictionary.get(current));
+
+                if (nextCode <= maxCode) {
+                    dictionary.set(combined, nextCode++);
+                    // Bump when nextCode exceeds 2^codeSize — keeps encoder in sync with the
+                    // decoder, which bumps after dict.length reaches 2^codeSize (one entry earlier).
+                    if (nextCode > (1 << codeSize) && codeSize < 12) {
+                        codeSize++;
+                    }
+                }
+
+                current = next;
+            }
+        }
+
+        writeCode(dictionary.get(current));
+        writeCode(eoiCode);
+
+        if (bufferSize > 0) {
+            output.push(buffer & 0xff);
+        }
+
+        return { data: new Uint8Array(output), minCodeSize };
+    }
+
     // --- Import validation ---
 
     function clampDimension(value, fallback) {
@@ -112,5 +177,5 @@
 
     const VERSION = '1.0.0';
 
-    return { VERSION, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData };
+    return { VERSION, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
 });

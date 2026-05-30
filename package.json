@@ -4,7 +4,7 @@
   "description": "The **NeoMatrix Frame Creator** is a web-based tool designed to help developers and artists craft LED matrix frames for **animations** on projects that use NeoMatrix and WS2812 (RGB) LEDs. The tool provides an interactive grid and straightforward controls to visualize each frame, experiment with orientation and sizes, and ultimately export your designs into usable code. This was originally designed for the final project in the University of Florida class CEN4907C, Computer Engineering Design 1, on the WS2812 LED matrix.",
   "main": "._script.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",

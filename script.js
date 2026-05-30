@@ -28,15 +28,17 @@ const MAX_UNDO_STEPS = 50;
 // LocalStorage key
 const STORAGE_KEY = 'neomatrix-autosave';
 
+// Guard against double-initialization (script is a non-deferred classic script)
+let appInitialized = false;
+
 /* ============================================
    Initialization
    ============================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
-});
-
 function initializeApp() {
+    if (appInitialized) return;
+    appInitialized = true;
+
     // Try to load from localStorage
     loadFromStorage();
 

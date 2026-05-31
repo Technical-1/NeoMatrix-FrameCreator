@@ -62,6 +62,22 @@
         return domRow * width + domCol;
     }
 
+    // Crop every frame's coords to a new grid size: keep pixels that still land on
+    // a cell, drop those now outside [0,width) x [0,height). Used by the resize path
+    // so shrinking the grid no longer wipes every frame — only the pixels that lost
+    // their cell are removed. Returns NEW frame objects with fresh coords arrays (any
+    // extra per-frame fields, e.g. name/duration, are preserved) so the caller can
+    // assign the result without aliasing the originals.
+    function clampFramesToGrid(frames, width, height) {
+        return (Array.isArray(frames) ? frames : []).map(f => ({
+            ...f,
+            coords: (Array.isArray(f && f.coords) ? f.coords : []).filter(pt =>
+                pt && Number.isFinite(pt.row) && Number.isFinite(pt.col)
+                && pt.row >= 0 && pt.row < height
+                && pt.col >= 0 && pt.col < width)
+        }));
+    }
+
     // --- Colour helpers (shared with later tasks) ---
 
     function isValidHexColor(hex) {
@@ -293,5 +309,5 @@
 
     const VERSION = '1.0.1';
 
-    return { VERSION, sanitizeFrameName, nonEmptyFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
+    return { VERSION, sanitizeFrameName, nonEmptyFrames, clampFramesToGrid, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
 });

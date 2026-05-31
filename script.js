@@ -54,6 +54,9 @@ function initializeApp() {
     // Set up keyboard navigation
     setupKeyboardNavigation();
 
+    // Set up click-drag painting (mouse + touch)
+    setupPainting();
+
     // Set up color picker
     setupColorPicker();
 
@@ -381,10 +384,22 @@ function createGrid() {
         btn.setAttribute('aria-pressed', 'false');
         btn.setAttribute('data-index', i);
 
-        btn.addEventListener("click", () => handleCellClick(btn, i));
+        // Painting: mousedown starts a stroke, mouseenter extends it while the
+        // button is held. A real mouse click (detail >= 1) is fully handled by the
+        // mousedown/mouseup pair, so the click handler only acts on keyboard or
+        // programmatic activation (Enter/Space and .click() both report detail 0).
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); beginPaint(i); });
+        btn.addEventListener('mouseenter', () => { if (painting) applyPaintAt(i); });
+        btn.addEventListener('click', (e) => { if (e.detail === 0) handleCellClick(btn, i); });
 
-        // Touch feedback
-        btn.addEventListener('touchstart', () => btn.classList.add('touching'), { passive: true });
+        // Touch painting: preventDefault suppresses the emulated mouse events
+        // (which would re-toggle the start cell) and stops the page scrolling
+        // mid-stroke. touchmove/touchend are handled once on the container.
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            btn.classList.add('touching');
+            beginPaint(i);
+        }, { passive: false });
         btn.addEventListener('touchend', () => btn.classList.remove('touching'), { passive: true });
 
         container.appendChild(btn);
@@ -396,36 +411,102 @@ function createGrid() {
     updateFrameIndicator();
 }
 
-function handleCellClick(button, index) {
-    // Save state for undo
+// --- Painting (click + click-drag, mouse & touch) ---
+//
+// A stroke = one press-drag-release. saveState() runs once at the start so the
+// whole drag collapses into a single undo step, and each cell is touched at most
+// once per stroke (paintedIndices) so dragging back over a cell can't flip it
+// repeatedly.
+let painting = false;
+let paintMode = null;        // 'paint' | 'erase'
+let paintedIndices = null;   // Set<domIndex> touched this stroke
+
+function beginPaint(index) {
     saveState();
+    painting = true;
+    paintedIndices = new Set();
+
+    // The first cell decides the stroke's mode: erase if it's already lit in the
+    // current colour (preserving the old click-to-toggle-off gesture), otherwise
+    // paint. A lit cell of a *different* colour is recoloured by paint, not erased.
+    const { row, col } = indexToRowCol(index, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
+    const existing = frames[currentFrameIndex].coords.find(pt => pt.row === row && pt.col === col);
+    paintMode = (existing && existing.color === ledColor) ? 'erase' : 'paint';
+
+    applyPaintAt(index);
+}
+
+function applyPaintAt(index) {
+    if (!paintedIndices || paintedIndices.has(index)) return;
+    paintedIndices.add(index);
+
+    const button = gridButtons[index];
+    if (!button) return;
 
     const { row, col } = indexToRowCol(index, GRID_WIDTH, GRID_HEIGHT, gridOrientation);
-    const activeFrame = frames[currentFrameIndex];
+    const coords = frames[currentFrameIndex].coords;
+    const existing = coords.findIndex(pt => pt.row === row && pt.col === col);
 
-    const existing = activeFrame.coords.findIndex(pt => pt.row === row && pt.col === col);
-
-    if (existing >= 0) {
-        // If clicking same cell with same color, remove it
-        // If clicking with different color, update the color
-        if (activeFrame.coords[existing].color === ledColor) {
-            activeFrame.coords.splice(existing, 1);
+    if (paintMode === 'erase') {
+        if (existing >= 0) {
+            coords.splice(existing, 1);
             button.classList.remove("clicked");
             button.style.removeProperty('--pixel-color');
             button.setAttribute('aria-pressed', 'false');
-        } else {
-            activeFrame.coords[existing].color = ledColor;
-            button.style.setProperty('--pixel-color', ledColor);
         }
     } else {
-        activeFrame.coords.push({ row, col, color: ledColor });
+        if (existing >= 0) {
+            coords[existing].color = ledColor;
+        } else {
+            coords.push({ row, col, color: ledColor });
+        }
         button.classList.add("clicked");
         button.style.setProperty('--pixel-color', ledColor);
         button.setAttribute('aria-pressed', 'true');
     }
+}
 
+function endPaint() {
+    if (!painting) return;
+    painting = false;
+    paintMode = null;
+    paintedIndices = null;
+
+    // Defer the heavier updates to stroke end so a long drag repaints the
+    // coordinate readout and thumbnails once, not once per cell.
     updateCoordinatesDisplay();
     renderFrameThumbnails();
+}
+
+// Single-cell activation (keyboard Enter/Space, or a programmatic .click()).
+// Implemented as a one-cell stroke so it shares the single-undo + repaint path.
+function handleCellClick(button, index) {
+    beginPaint(index);
+    endPaint();
+}
+
+// Stroke end + touch-drag tracking are bound once (createGrid runs on every
+// resize, so binding these per-button would leak duplicate listeners).
+function setupPainting() {
+    document.addEventListener('mouseup', endPaint);
+
+    const container = document.getElementById('grid-container');
+    if (!container) return;
+
+    container.addEventListener('touchmove', (e) => {
+        if (!painting) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        if (!t) return;
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        if (el && el.parentElement === container) {
+            const idx = parseInt(el.getAttribute('data-index'), 10);
+            if (Number.isInteger(idx)) applyPaintAt(idx);
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchend', endPaint);
+    container.addEventListener('touchcancel', endPaint);
 }
 
 function updateOrientation(newOrientation) {
@@ -481,17 +562,22 @@ function updateGridSize() {
 
     saveState();
 
+    const pixelsBefore = frames.reduce((n, f) => n + f.coords.length, 0);
+
     GRID_WIDTH = newWidth;
     GRID_HEIGHT = newHeight;
-    frames.forEach(f => f.coords = []);
-    currentFrameIndex = 0;
+    // Keep pixels that still fit; only drop those now outside the bounds, so
+    // shrinking the grid no longer wipes every frame. Frames map 1:1 (empty ones
+    // are retained), so currentFrameIndex stays valid and is left untouched.
+    frames = clampFramesToGrid(frames, GRID_WIDTH, GRID_HEIGHT);
+    const trimmed = pixelsBefore - frames.reduce((n, f) => n + f.coords.length, 0);
+
     createGrid();
     renderFrameThumbnails();
 
-    showToast(
-        wasClamped ? `Clamped to ${GRID_WIDTH}×${GRID_HEIGHT}` : `Grid: ${GRID_WIDTH}×${GRID_HEIGHT}`,
-        wasClamped ? 'error' : 'success'
-    );
+    let msg = wasClamped ? `Clamped to ${GRID_WIDTH}×${GRID_HEIGHT}` : `Grid: ${GRID_WIDTH}×${GRID_HEIGHT}`;
+    if (trimmed > 0) msg += ` · ${trimmed} off-grid pixel${trimmed !== 1 ? 's' : ''} trimmed`;
+    showToast(msg, wasClamped ? 'error' : 'success');
 }
 
 function highlightCornerButton() {

@@ -302,3 +302,57 @@ test('generated Rust excludes empty frames so the scroll math never overflows', 
         dom.window.close();
     }
 });
+
+test('click-drag paints every cell it passes over as a single undo step', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        const btns = buttons(w);
+        const md = (el) => el.dispatchEvent(new w.MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        const me = (el) => el.dispatchEvent(new w.MouseEvent('mouseenter', { bubbles: false }));
+        const mu = () => w.document.dispatchEvent(new w.MouseEvent('mouseup', { bubbles: true }));
+
+        md(btns[0]); me(btns[1]); me(btns[2]); mu();
+        assert.deepStrictEqual(litIndices(w), [0, 1, 2], 'a drag lights every cell it crosses');
+
+        w.document.dispatchEvent(new w.KeyboardEvent('keydown', {
+            key: 'z', ctrlKey: true, bubbles: true, cancelable: true
+        }));
+        assert.strictEqual(litIndices(w).length, 0,
+            'one Ctrl+Z undoes the whole stroke (one saveState per stroke, not per cell)');
+    } finally {
+        dom.window.close();
+    }
+});
+
+test('mouseenter with no stroke in progress paints nothing', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        buttons(w)[4].dispatchEvent(new w.MouseEvent('mouseenter', { bubbles: false }));
+        assert.deepStrictEqual(litIndices(w), [], 'hovering without a held button must not paint');
+    } finally {
+        dom.window.close();
+    }
+});
+
+test('resizing keeps in-bounds pixels and trims the rest', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        const btns = buttons(w);
+        btns[0].click();   // (0,0) — survives a shrink to 4x4
+        btns[63].click();  // (7,7) — off-grid after the shrink
+        assert.strictEqual(litIndices(w).length, 2, 'two pixels before resize');
+
+        w.document.getElementById('grid-width-input').value = '4';
+        w.document.getElementById('grid-height-input').value = '4';
+        w.eval('updateGridSize()');
+
+        assert.strictEqual(buttons(w).length, 16, 'grid is now 4x4');
+        assert.deepStrictEqual(litIndices(w), [0],
+            'the in-bounds pixel survives the resize; the out-of-bounds one is trimmed');
+    } finally {
+        dom.window.close();
+    }
+});

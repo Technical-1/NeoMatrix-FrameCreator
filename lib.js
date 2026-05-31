@@ -145,6 +145,52 @@
         return { data: new Uint8Array(output), minCodeSize };
     }
 
+    // Build a GIF Global Color Table from RGB triples, capped at maxColors (<=256).
+    // Black (0,0,0) is forced to index 0 (the renderer's background). When more
+    // than maxColors distinct colours appear, the most frequent are kept and any
+    // other colour resolves to its nearest palette entry by squared RGB distance —
+    // so the header stays valid and overflow colours degrade gracefully instead of
+    // turning black or corrupting colorBits.
+    function buildGifPalette(rgbTriples, maxColors = 256) {
+        const cap = Math.max(2, Math.min(256, maxColors));
+        const freq = new Map();
+        freq.set('0,0,0', Infinity); // pin black to the front
+        for (const [r, g, b] of rgbTriples) {
+            const k = r + ',' + g + ',' + b;
+            freq.set(k, (freq.get(k) || 0) + 1);
+        }
+
+        const chosen = [...freq.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, cap)
+            .map(([k]) => k.split(',').map(Number));
+
+        const size = Math.max(2, Math.pow(2, Math.ceil(Math.log2(chosen.length))));
+        const colorBits = Math.ceil(Math.log2(size));
+        const table = new Uint8Array(size * 3);
+        const exact = new Map();
+        chosen.forEach(([r, g, b], i) => {
+            table[i * 3] = r;
+            table[i * 3 + 1] = g;
+            table[i * 3 + 2] = b;
+            exact.set(r + ',' + g + ',' + b, i);
+        });
+
+        function indexOf(r, g, b) {
+            const hit = exact.get(r + ',' + g + ',' + b);
+            if (hit !== undefined) return hit;
+            let best = 0, bestD = Infinity;
+            for (let i = 0; i < chosen.length; i++) {
+                const [cr, cg, cb] = chosen[i];
+                const d = (cr - r) * (cr - r) + (cg - g) * (cg - g) + (cb - b) * (cb - b);
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best;
+        }
+
+        return { table, colorBits, indexOf };
+    }
+
     // --- Import validation ---
 
     function clampDimension(value, fallback) {
@@ -195,5 +241,5 @@
 
     const VERSION = '1.0.1';
 
-    return { VERSION, sanitizeFrameName, nonEmptyFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
+    return { VERSION, sanitizeFrameName, nonEmptyFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
 });

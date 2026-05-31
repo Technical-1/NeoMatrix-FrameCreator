@@ -102,40 +102,44 @@ function saveToStorage() {
 function loadFromStorage() {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const data = JSON.parse(saved);
-            if (data.frames && data.frames.length > 0) {
-                GRID_WIDTH = data.gridWidth || 8;
-                GRID_HEIGHT = data.gridHeight || 8;
-                gridOrientation = data.orientation || "top-left";
-                ledColor = normalizeColor(data.ledColor, "#00f0ff");
-                animationSpeed = data.animationSpeed || 200;
-                frames = data.frames;
-                currentFrameIndex = Math.min(data.currentFrameIndex || 0, frames.length - 1);
+        if (!saved) return;
 
-                // Migrate old format: add color to coords if missing
-                frames.forEach(frame => {
-                    frame.coords = frame.coords.map(pt => ({
-                        row: pt.row,
-                        col: pt.col,
-                        color: pt.color || ledColor
-                    }));
-                });
+        const data = JSON.parse(saved);
+        // Reuse the same validation/clamping as JSON import so stale or malformed
+        // autosave data can't crash or wedge the app. validateImportedData also
+        // normalizes per-pixel colours (subsuming the old format migration) and
+        // throws on empty/missing frames, which the catch treats as "nothing to load".
+        const normalized = validateImportedData(data, {
+            gridWidth: 8,
+            gridHeight: 8,
+            orientation: 'top-left',
+            ledColor: '#00f0ff',
+            animationSpeed: 200
+        });
 
-                // Update UI inputs
-                const widthInput = document.getElementById('grid-width-input');
-                const heightInput = document.getElementById('grid-height-input');
-                const colorPicker = document.getElementById('color-picker');
-                const speedInput = document.getElementById('speed-input');
+        GRID_WIDTH = normalized.gridWidth;
+        GRID_HEIGHT = normalized.gridHeight;
+        gridOrientation = normalized.orientation;
+        ledColor = normalized.ledColor;
+        animationSpeed = normalized.animationSpeed;
+        frames = normalized.frames;
 
-                if (widthInput) widthInput.value = GRID_WIDTH;
-                if (heightInput) heightInput.value = GRID_HEIGHT;
-                if (colorPicker) colorPicker.value = ledColor;
-                if (speedInput) speedInput.value = animationSpeed;
+        // Preserve the saved frame index (validateImportedData doesn't track it)
+        const savedIndex = Number.isFinite(data.currentFrameIndex) ? data.currentFrameIndex : 0;
+        currentFrameIndex = Math.max(0, Math.min(savedIndex, frames.length - 1));
 
-                updateCellColor(ledColor);
-            }
-        }
+        // Update UI inputs
+        const widthInput = document.getElementById('grid-width-input');
+        const heightInput = document.getElementById('grid-height-input');
+        const colorPicker = document.getElementById('color-picker');
+        const speedInput = document.getElementById('speed-input');
+
+        if (widthInput) widthInput.value = GRID_WIDTH;
+        if (heightInput) heightInput.value = GRID_HEIGHT;
+        if (colorPicker) colorPicker.value = ledColor;
+        if (speedInput) speedInput.value = animationSpeed;
+
+        updateCellColor(ledColor);
     } catch (e) {
         console.warn('Failed to load from localStorage:', e);
     }
@@ -1347,15 +1351,6 @@ function downloadGIF() {
                 ctx.fill();
             };
 
-            // Helper to parse hex color to RGB
-            const hexToRgbArray = (hex) => {
-                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                return result ? [
-                    parseInt(result[1], 16),
-                    parseInt(result[2], 16),
-                    parseInt(result[3], 16)
-                ] : [0, 240, 255];
-            };
 
             // Generate frames for the animation
             for (let step = 0; step < totalScrollSteps; step++) {
@@ -1380,7 +1375,7 @@ function downloadGIF() {
                         const x = padding + shiftedCol * (cellSize + cellGap);
                         const y = padding + pt.row * (cellSize + cellGap);
                         const color = pt.color || ledColor;
-                        const [r, g, b] = hexToRgbArray(color);
+                        const { r, g, b } = parseHexColor(color);
 
                         // Outer glow
                         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.3)`;

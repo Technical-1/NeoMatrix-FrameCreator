@@ -1358,30 +1358,19 @@ function downloadGIF() {
                     }
                 }
 
-                // Draw lit pixels with glow effect
+                // Draw lit pixels as solid cells. Flat, opaque colours keep the GIF
+                // palette small (and crisp) — translucent glow/highlight layers
+                // generated hundreds of near-duplicate colours that then had to be
+                // nearest-mapped into the 256-colour cap.
                 megaCoords.forEach(pt => {
                     const shiftedCol = pt.col + offset;
                     if (shiftedCol >= 0 && shiftedCol < GRID_WIDTH) {
                         const x = padding + shiftedCol * (cellSize + cellGap);
                         const y = padding + pt.row * (cellSize + cellGap);
                         const color = pt.color || ledColor;
-                        const { r, g, b } = parseHexColor(color);
 
-                        // Outer glow
-                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.3)`;
-                        drawRoundedRect(x - 4, y - 4, cellSize + 8, cellSize + 8, cellRadius + 2);
-
-                        // Inner glow
-                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
-                        drawRoundedRect(x - 2, y - 2, cellSize + 4, cellSize + 4, cellRadius + 1);
-
-                        // Main LED
                         ctx.fillStyle = color;
                         drawRoundedRect(x, y, cellSize, cellSize, cellRadius);
-
-                        // Highlight
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-                        drawRoundedRect(x + 4, y + 4, cellSize - 12, cellSize / 3, cellRadius - 2);
                     }
                 });
 

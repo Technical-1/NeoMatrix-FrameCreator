@@ -845,9 +845,7 @@ function buildMegaFrame() {
     const result = [];
     let currentX = 0;
 
-    frames.forEach((frame) => {
-        if (!frame.coords.length) return;
-
+    nonEmptyFrames(frames).forEach((frame) => {
         let minC = Infinity, maxC = -Infinity;
         frame.coords.forEach(pt => {
             if (pt.col < minC) minC = pt.col;

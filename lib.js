@@ -182,7 +182,7 @@
         return { gridWidth: width, gridHeight: height, orientation, ledColor, animationSpeed, frames };
     }
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.1';
 
     return { VERSION, sanitizeFrameName, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
 });

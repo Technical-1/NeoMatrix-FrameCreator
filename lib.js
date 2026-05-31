@@ -175,7 +175,9 @@
         const frames = data.frames.map((f, i) => ({
             name: typeof (f && f.name) === 'string' ? f.name : `Frame ${i + 1}`,
             coords: (Array.isArray(f && f.coords) ? f.coords : [])
-                .filter(pt => pt && Number.isFinite(pt.row) && Number.isFinite(pt.col))
+                .filter(pt => pt && Number.isFinite(pt.row) && Number.isFinite(pt.col)
+                    && pt.row >= 0 && pt.row < height
+                    && pt.col >= 0 && pt.col < width)
                 .map(pt => ({ row: pt.row, col: pt.col, color: normalizeColor(pt.color, ledColor) }))
         }));
 

@@ -713,7 +713,7 @@ function renderFrameThumbnails() {
 let draggedFrameIndex = null;
 
 function handleDragStart(e) {
-    draggedFrameIndex = parseInt(this.dataset.index);
+    draggedFrameIndex = parseInt(this.dataset.index, 10);
     this.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
 }
@@ -736,7 +736,7 @@ function handleDrop(e) {
     e.preventDefault();
     this.classList.remove('drag-over');
 
-    const targetIndex = parseInt(this.dataset.index);
+    const targetIndex = parseInt(this.dataset.index, 10);
     if (draggedFrameIndex !== null && draggedFrameIndex !== targetIndex) {
         saveState();
 

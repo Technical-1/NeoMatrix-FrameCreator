@@ -19,6 +19,15 @@
         return str.replace(/[\r\n\x00-\x1F]+/g, ' ').trim();
     }
 
+    // Frames that actually contribute pixels to the layout. Used by BOTH the
+    // scrolling preview (buildMegaFrame) and the Rust generator so they agree on
+    // which frames exist — an empty frame in the Rust output makes the scroll
+    // loop compute width_of_frame from isize::MAX/MIN and overflow.
+    function nonEmptyFrames(frames) {
+        return (Array.isArray(frames) ? frames : [])
+            .filter(f => f && Array.isArray(f.coords) && f.coords.length > 0);
+    }
+
     // --- Coordinate geometry (corner-reflection origins) ---
 
     function indexToRowCol(index, width, height, orientation) {
@@ -186,5 +195,5 @@
 
     const VERSION = '1.0.1';
 
-    return { VERSION, sanitizeFrameName, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
+    return { VERSION, sanitizeFrameName, nonEmptyFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode };
 });

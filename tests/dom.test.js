@@ -213,6 +213,65 @@ test('keyboard handler does not error when document.activeElement is null', () =
     }
 });
 
+test('undo restores grid orientation, not just the pixels', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        // Start from a known origin and light an interior, asymmetric cell.
+        w.eval("updateOrientation('top-left')");
+        const k = 10; // domRow 1, domCol 2 on an 8-wide grid — moves under a flip
+        buttons(w)[k].click();
+        assert.deepStrictEqual(litIndices(w), [k], 'precondition: cell k is lit under top-left');
+
+        // Changing origin clears every frame; the pre-change snapshot still holds
+        // the coord authored under top-left.
+        w.eval("updateOrientation('top-right')");
+        assert.strictEqual(litIndices(w).length, 0, 'origin change clears the frame');
+
+        // Undo must bring back BOTH the pixel and the origin it was drawn under,
+        // otherwise the restored coord renders through the wrong origin (mirrored).
+        w.document.dispatchEvent(new w.KeyboardEvent('keydown', {
+            key: 'z', ctrlKey: true, bubbles: true, cancelable: true
+        }));
+
+        assert.deepStrictEqual(litIndices(w), [k],
+            'after undo the pixel returns to the exact clicked cell');
+        const active = w.document.querySelector('.origin-btn.active');
+        assert.strictEqual(active && active.getAttribute('data-orientation'), 'top-left',
+            'after undo the origin selector returns to top-left');
+    } finally {
+        dom.window.close();
+    }
+});
+
+test('Tab and Shift+Tab are trapped inside the Rust modal', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        w.eval('showFinishedModal()');
+        const modal = w.document.getElementById('rust-modal');
+        const focusables = [...modal.querySelectorAll(
+            'button, [href], input, textarea, [tabindex]:not([tabindex="-1"])'
+        )].filter(el => !el.disabled);
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        assert.ok(focusables.length >= 2, 'modal should have multiple focusable controls');
+
+        last.focus();
+        const fwd = new w.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        modal.dispatchEvent(fwd);
+        assert.strictEqual(w.document.activeElement, first, 'Tab from last wraps to first');
+        assert.ok(fwd.defaultPrevented, 'the wrap handler prevents the default Tab');
+
+        first.focus();
+        const back = new w.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+        modal.dispatchEvent(back);
+        assert.strictEqual(w.document.activeElement, last, 'Shift+Tab from first wraps to last');
+    } finally {
+        dom.window.close();
+    }
+});
+
 test('generated Rust excludes empty frames so the scroll math never overflows', () => {
     const dom = makeApp();
     const w = dom.window;

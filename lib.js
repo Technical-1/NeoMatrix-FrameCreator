@@ -70,7 +70,11 @@
 
     function normalizeColor(hex, fallback) {
         if (!isValidHexColor(hex)) return fallback;
-        return hex.charAt(0) === '#' ? hex : '#' + hex;
+        // Lowercase so stored colours match the <input type="color"> value, which is
+        // always lowercase — otherwise an uppercase imported '#00F0FF' never equals
+        // the picker's '#00f0ff' and a click can't toggle that pixel off.
+        const withHash = hex.charAt(0) === '#' ? hex : '#' + hex;
+        return withHash.toLowerCase();
     }
 
     function parseHexColor(hex) {
@@ -191,6 +195,54 @@
         return { table, colorBits, indexOf };
     }
 
+    // --- Animation speed rules ---
+
+    // Single source of truth for the speed-input rules. Returns whether the value
+    // is accepted, the resulting speed, and whether it was clamped to the max — so
+    // updateAnimationSpeed has one accept path and always restarts a running
+    // animation (the old >2000 branch returned early and skipped the restart).
+    function resolveSpeedInput(raw, current) {
+        const n = parseInt(raw, 10);
+        if (Number.isNaN(n) || n < 50) {
+            return { accepted: false, speed: current, clampedToMax: false };
+        }
+        const clampedToMax = n > 2000;
+        return { accepted: true, speed: Math.min(2000, n), clampedToMax };
+    }
+
+    // --- GIF export sizing ---
+
+    // downloadGIF retains one full-resolution ImageData per scroll step, so memory
+    // scales as width * height * 4 * steps. Cap the canvas resolution (shrinking the
+    // per-cell size for large grids) and refuse exports whose bounded footprint
+    // still blows the byte budget, instead of letting the tab allocate gigabytes.
+    const GIF_DEFAULT_CELL = 32;
+    const GIF_CELL_GAP = 4;
+    const GIF_CELL_RADIUS = 6;
+    const GIF_PADDING = 16;
+    const GIF_CANVAS_CAP = 512;            // max canvas dimension in px
+    const GIF_MAX_BYTES = 256 * 1024 * 1024; // 256 MB total ImageData budget
+
+    function planGifExport(gridWidth, gridHeight, steps) {
+        const maxGrid = Math.max(1, gridWidth, gridHeight);
+        // Largest cell size that keeps the bigger grid dimension within the cap.
+        const fit = Math.floor((GIF_CANVAS_CAP - 2 * GIF_PADDING + GIF_CELL_GAP) / maxGrid) - GIF_CELL_GAP;
+        const cellSize = Math.max(1, Math.min(GIF_DEFAULT_CELL, fit));
+        const cellRadius = Math.min(GIF_CELL_RADIUS, Math.floor(cellSize / 2));
+
+        const dim = (cells) => cells * (cellSize + GIF_CELL_GAP) - GIF_CELL_GAP + GIF_PADDING * 2;
+        const width = dim(gridWidth);
+        const height = dim(gridHeight);
+
+        const totalBytes = width * height * 4 * Math.max(0, steps);
+        const ok = totalBytes <= GIF_MAX_BYTES;
+        const reason = ok
+            ? ''
+            : `Animation too large to export (~${Math.round(totalBytes / (1024 * 1024))} MB). Reduce grid size, frame count, or speed.`;
+
+        return { ok, reason, cellSize, cellGap: GIF_CELL_GAP, cellRadius, padding: GIF_PADDING, width, height };
+    }
+
     // --- Import validation ---
 
     function clampDimension(value, fallback) {
@@ -241,5 +293,5 @@
 
     const VERSION = '1.0.1';
 
-    return { VERSION, sanitizeFrameName, nonEmptyFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
+    return { VERSION, sanitizeFrameName, nonEmptyFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
 });

@@ -149,15 +149,22 @@ function loadFromStorage() {
    Undo/Redo System
    ============================================ */
 
-function saveState() {
-    const state = {
+// Capture everything an undo/redo step must be able to restore. gridOrientation
+// is part of this: changing the origin clears the frames, so a snapshot that
+// omitted it would restore the pixels but leave the new origin in place, redrawing
+// the old coords through the wrong mapping (mirrored).
+function snapshotState() {
+    return {
         frames: JSON.parse(JSON.stringify(frames)),
         currentFrameIndex: currentFrameIndex,
         gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT
+        gridHeight: GRID_HEIGHT,
+        gridOrientation: gridOrientation
     };
+}
 
-    undoStack.push(state);
+function saveState() {
+    undoStack.push(snapshotState());
     if (undoStack.length > MAX_UNDO_STEPS) {
         undoStack.shift();
     }
@@ -171,13 +178,7 @@ function undo() {
     if (undoStack.length === 0) return;
 
     // Save current state to redo stack
-    const currentState = {
-        frames: JSON.parse(JSON.stringify(frames)),
-        currentFrameIndex: currentFrameIndex,
-        gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT
-    };
-    redoStack.push(currentState);
+    redoStack.push(snapshotState());
 
     // Restore previous state
     const prevState = undoStack.pop();
@@ -190,13 +191,7 @@ function redo() {
     if (redoStack.length === 0) return;
 
     // Save current state to undo stack
-    const currentState = {
-        frames: JSON.parse(JSON.stringify(frames)),
-        currentFrameIndex: currentFrameIndex,
-        gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT
-    };
-    undoStack.push(currentState);
+    undoStack.push(snapshotState());
 
     // Restore redo state
     const nextState = redoStack.pop();
@@ -209,14 +204,30 @@ function restoreState(state) {
     frames = state.frames;
     currentFrameIndex = Math.min(state.currentFrameIndex, frames.length - 1);
 
-    if (state.gridWidth !== GRID_WIDTH || state.gridHeight !== GRID_HEIGHT) {
+    const sizeChanged = state.gridWidth !== GRID_WIDTH || state.gridHeight !== GRID_HEIGHT;
+    // Older snapshots may predate gridOrientation; treat missing as "no change".
+    const orientationChanged = state.gridOrientation !== undefined
+        && state.gridOrientation !== gridOrientation;
+
+    if (sizeChanged) {
         GRID_WIDTH = state.gridWidth;
         GRID_HEIGHT = state.gridHeight;
         document.getElementById('grid-width-input').value = GRID_WIDTH;
         document.getElementById('grid-height-input').value = GRID_HEIGHT;
+    }
+    if (orientationChanged) {
+        gridOrientation = state.gridOrientation;
+    }
+
+    // A grid rebuild is needed when the size or the origin changed (the origin
+    // affects the corner-dot and the coord→cell mapping); otherwise just repaint.
+    if (sizeChanged || orientationChanged) {
         createGrid();
     } else {
         applyFrameToGrid();
+    }
+    if (orientationChanged) {
+        updateOrientationButtons();
     }
 
     updateFrameIndicator();
@@ -975,24 +986,22 @@ function downloadCSV() {
 
 function updateAnimationSpeed() {
     const input = document.getElementById("speed-input");
-    const newSpeed = parseInt(input.value, 10);
+    const result = resolveSpeedInput(input.value, animationSpeed);
 
-    if (isNaN(newSpeed) || newSpeed < 50) {
+    if (!result.accepted) {
         input.value = animationSpeed;
         showToast("Speed must be at least 50ms", 'error');
         return;
     }
 
-    if (newSpeed > 2000) {
-        input.value = 2000;
-        animationSpeed = 2000;
+    animationSpeed = result.speed;
+    input.value = result.speed;
+    if (result.clampedToMax) {
         showToast("Speed set to max 2000ms", 'success');
-        return;
     }
 
-    animationSpeed = newSpeed;
-
-    // If animation is running, restart with new speed
+    // Single accept path: a running animation always restarts with the new speed,
+    // including the clamped >2000 case (which previously returned early).
     if (scrollingInProgress) {
         stopScroll();
         startScroll();
@@ -1292,22 +1301,10 @@ function downloadGIF() {
     // Use setTimeout to allow UI to update
     setTimeout(() => {
         try {
-            // Higher resolution: 32px per cell for crisp output
-            const cellSize = 32;
-            const cellGap = 4;
-            const cellRadius = 6;
-            const padding = 16;
-
-            const gifWidth = GRID_WIDTH * (cellSize + cellGap) - cellGap + padding * 2;
-            const gifHeight = GRID_HEIGHT * (cellSize + cellGap) - cellGap + padding * 2;
-
-            const encoder = new GifEncoder(gifWidth, gifHeight);
-            const canvas = document.createElement('canvas');
-            canvas.width = gifWidth;
-            canvas.height = gifHeight;
-            const ctx = canvas.getContext('2d');
-
-            // Build megaframe for scrolling animation
+            // Build the scroll animation first so the step count is known, then
+            // size the export. The encoder retains one ImageData per step, so
+            // planGifExport caps the per-cell resolution for large grids and
+            // refuses exports whose bounded footprint would still blow the budget.
             const megaCoords = buildMegaFrame();
 
             if (megaCoords.length === 0) {
@@ -1323,6 +1320,20 @@ function downloadGIF() {
             });
 
             const totalScrollSteps = (maxC - minC) + GRID_WIDTH + 1;
+
+            const plan = planGifExport(GRID_WIDTH, GRID_HEIGHT, totalScrollSteps);
+            if (!plan.ok) {
+                showToast(plan.reason, 'error');
+                return;
+            }
+            const { cellSize, cellGap, cellRadius, padding, width: gifWidth, height: gifHeight } = plan;
+
+            const encoder = new GifEncoder(gifWidth, gifHeight);
+            const canvas = document.createElement('canvas');
+            canvas.width = gifWidth;
+            canvas.height = gifHeight;
+            const ctx = canvas.getContext('2d');
+
             let offset = GRID_WIDTH - minC;
 
             // Helper to draw rounded rectangle
@@ -1466,14 +1477,43 @@ function showFinishedModal() {
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
 
-    // Focus trap
+    // Move focus into the dialog and keep it there while open (aria-modal="true").
     modal.querySelector('.modal-close').focus();
+    modal.addEventListener('keydown', handleModalFocusTrap);
 
     // Close on escape
     document.addEventListener('keydown', handleModalEscape);
 
     // Close on click outside
     modal.addEventListener('click', handleModalClickOutside);
+}
+
+// Keep Tab/Shift+Tab cycling within the modal's focusable controls so keyboard
+// focus can't escape to the page behind an aria-modal dialog.
+function handleModalFocusTrap(e) {
+    if (e.key !== 'Tab') return;
+
+    const modal = document.getElementById('rust-modal');
+    if (!modal) return;
+
+    const focusables = [...modal.querySelectorAll(
+        'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
+    )].filter(el => !el.disabled);
+    if (focusables.length === 0) return;
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+
+    if (e.shiftKey) {
+        if (active === first || !modal.contains(active)) {
+            e.preventDefault();
+            last.focus();
+        }
+    } else if (active === last || !modal.contains(active)) {
+        e.preventDefault();
+        first.focus();
+    }
 }
 
 function handleModalClickOutside(e) {
@@ -1488,6 +1528,7 @@ function closeRustModal() {
     document.body.style.overflow = '';
     document.removeEventListener('keydown', handleModalEscape);
     modal.removeEventListener('click', handleModalClickOutside);
+    modal.removeEventListener('keydown', handleModalFocusTrap);
 }
 
 function handleModalEscape(e) {

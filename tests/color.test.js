@@ -18,6 +18,14 @@ test('normalizeColor adds a missing hash and falls back on garbage', () => {
     assert.strictEqual(normalizeColor('red', '#000000'), '#000000');
 });
 
+test('normalizeColor lowercases hex so it matches the colour picker value', () => {
+    // The <input type="color"> always reports lowercase hex, but imported/legacy
+    // data can carry uppercase. Normalising to lowercase lets handleCellClick's
+    // `stored === ledColor` toggle-off comparison succeed regardless of source case.
+    assert.strictEqual(normalizeColor('#00F0FF', '#000000'), '#00f0ff');
+    assert.strictEqual(normalizeColor('AABBCC', '#000000'), '#aabbcc');
+});
+
 test('parseHexColor never returns NaN components', () => {
     const c = parseHexColor('not-a-color');
     assert.ok(Number.isFinite(c.r) && Number.isFinite(c.g) && Number.isFinite(c.b));

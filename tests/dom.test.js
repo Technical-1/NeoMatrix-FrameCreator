@@ -9,7 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
+const { JSDOM, VirtualConsole } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -35,6 +35,29 @@ function makeApp() {
     // so this is a no-op if the bottom-of-file block already ran initializeApp().
     w.eval('initializeApp()');
     return dom;
+}
+
+// Like makeApp(), but routes jsdom's uncaught listener errors into `errors`.
+// jsdom reports exceptions thrown inside event listeners on the 'jsdomError'
+// channel rather than rethrowing from dispatchEvent, so this is how we assert a
+// handler did NOT throw.
+function makeAppCapturingErrors() {
+    const errors = [];
+    const vc = new VirtualConsole();
+    vc.on('jsdomError', e => errors.push(e));
+    const dom = new JSDOM(html, {
+        runScripts: 'outside-only',
+        url: 'http://localhost/',
+        pretendToBeVisual: true,
+        virtualConsole: vc
+    });
+    const w = dom.window;
+    w.scrollTo = () => {};
+    try { w.localStorage.clear(); } catch (e) { /* hermetic start */ }
+    w.eval(libSrc);
+    w.eval(appSrc);
+    w.eval('initializeApp()');
+    return { dom, w, errors };
 }
 
 function buttons(w) {

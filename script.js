@@ -1182,37 +1182,20 @@ class GifEncoder {
         this.frames.push({ imageData, delay });
     }
 
-    // Build color table from all frames
+    // Build a capped (<=256 colour) GIF color table from all frames.
     buildColorTable() {
-        const colors = new Map();
-        colors.set('0,0,0', 0); // Black always first (background)
-
+        const triples = [];
         this.frames.forEach(frame => {
             const data = frame.imageData.data;
             for (let i = 0; i < data.length; i += 4) {
-                const key = `${data[i]},${data[i+1]},${data[i+2]}`;
-                if (!colors.has(key)) {
-                    colors.set(key, colors.size);
-                }
+                triples.push([data[i], data[i + 1], data[i + 2]]);
             }
         });
-
-        // Pad to power of 2
-        const colorCount = Math.max(4, Math.pow(2, Math.ceil(Math.log2(colors.size))));
-        const table = new Uint8Array(colorCount * 3);
-
-        colors.forEach((index, key) => {
-            const [r, g, b] = key.split(',').map(Number);
-            table[index * 3] = r;
-            table[index * 3 + 1] = g;
-            table[index * 3 + 2] = b;
-        });
-
-        return { table, colors, colorBits: Math.ceil(Math.log2(colorCount)) };
+        return buildGifPalette(triples, 256); // { table, colorBits, indexOf }
     }
 
     encode() {
-        const { table, colors, colorBits } = this.buildColorTable();
+        const { table, colorBits, indexOf } = this.buildColorTable();
         const parts = [];
 
         // Header
@@ -1260,12 +1243,11 @@ class GifEncoder {
                 0x00 // No local color table
             ]));
 
-            // Convert image data to indexed pixels
+            // Convert image data to indexed pixels (nearest palette entry)
             const pixels = [];
             const data = frame.imageData.data;
             for (let i = 0; i < data.length; i += 4) {
-                const key = `${data[i]},${data[i+1]},${data[i+2]}`;
-                pixels.push(colors.get(key) || 0);
+                pixels.push(indexOf(data[i], data[i + 1], data[i + 2]));
             }
 
             // LZW compressed data

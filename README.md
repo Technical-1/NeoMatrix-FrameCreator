@@ -1,7 +1,7 @@
 # NeoMatrix Frame Creator
 
 [![Live Demo](https://img.shields.io/badge/demo-live-00f0ff?style=flat-square)](https://technical-1.github.io/NeoMatrix-FrameCreator/)
-[![License](https://img.shields.io/badge/license-ISC-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 A web-based visual editor for designing LED matrix animations for WS2812 (NeoPixel) LED displays. Create multi-color pixel art, preview scrolling animations, and export to Rust code or animated GIF.
 

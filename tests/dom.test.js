@@ -192,3 +192,23 @@ test('updateGridSize still rejects sub-1 dimensions without resizing', () => {
         dom.window.close();
     }
 });
+
+test('keyboard handler does not error when document.activeElement is null', () => {
+    const { dom, w, errors } = makeAppCapturingErrors();
+    try {
+        // Some browser states leave activeElement null; force that here.
+        Object.defineProperty(w.document, 'activeElement', {
+            configurable: true,
+            get: () => null
+        });
+
+        w.document.dispatchEvent(new w.KeyboardEvent('keydown', {
+            key: 'a', bubbles: true, cancelable: true
+        }));
+
+        assert.strictEqual(errors.length, 0,
+            'a keypress with no active element must not raise an error');
+    } finally {
+        dom.window.close();
+    }
+});

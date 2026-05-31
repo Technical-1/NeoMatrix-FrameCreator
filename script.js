@@ -294,7 +294,7 @@ function updateCellColor(color) {
 function setupKeyboardNavigation() {
     document.addEventListener('keydown', (e) => {
         // Skip if in input field
-        if (document.activeElement.tagName === 'INPUT') return;
+        if (document.activeElement?.tagName === 'INPUT') return;
 
         // Undo: Ctrl+Z
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {

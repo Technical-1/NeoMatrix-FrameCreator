@@ -157,3 +157,38 @@ test('grid-button cache is rebuilt on resize and drives applyFrameToGrid', () =>
         dom.window.close();
     }
 });
+
+test('updateGridSize clamps an over-max dimension and applies in one call', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        w.document.getElementById('grid-width-input').value = '100';
+        w.document.getElementById('grid-height-input').value = '8';
+        w.eval('updateGridSize()');
+
+        assert.strictEqual([...w.document.querySelectorAll('#grid-container button')].length,
+            64 * 8, 'grid should resize to 64x8 in a single call');
+        assert.strictEqual(w.document.getElementById('grid-width-input').value, '64',
+            'the width input should be clamped back to 64');
+    } finally {
+        dom.window.close();
+    }
+});
+
+test('updateGridSize still rejects sub-1 dimensions without resizing', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        const before = [...w.document.querySelectorAll('#grid-container button')].length; // 64
+        w.document.getElementById('grid-width-input').value = '0';
+        w.document.getElementById('grid-height-input').value = '8';
+        w.eval('updateGridSize()');
+
+        assert.strictEqual([...w.document.querySelectorAll('#grid-container button')].length,
+            before, 'a sub-1 dimension must not resize the grid');
+        assert.strictEqual(w.document.getElementById('grid-width-input').value, '8',
+            'inputs revert to the current size on a sub-1 entry');
+    } finally {
+        dom.window.close();
+    }
+});

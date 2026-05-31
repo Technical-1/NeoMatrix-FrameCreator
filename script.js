@@ -444,24 +444,29 @@ function updateGridSize() {
     const widthInput = document.getElementById("grid-width-input");
     const heightInput = document.getElementById("grid-height-input");
 
-    const newWidth = parseInt(widthInput.value, 10);
-    const newHeight = parseInt(heightInput.value, 10);
+    const rawW = parseInt(widthInput.value, 10);
+    const rawH = parseInt(heightInput.value, 10);
 
-    if (isNaN(newWidth) || newWidth < 1 || isNaN(newHeight) || newHeight < 1) {
+    if (isNaN(rawW) || isNaN(rawH) || rawW < 1 || rawH < 1) {
         showToast("Size must be at least 1", 'error');
         widthInput.value = GRID_WIDTH;
         heightInput.value = GRID_HEIGHT;
         return;
     }
 
-    if (newWidth > 64 || newHeight > 64) {
-        showToast("Maximum size is 64", 'error');
-        widthInput.value = Math.min(newWidth, 64);
-        heightInput.value = Math.min(newHeight, 64);
+    // clampDimension (from lib.js) clamps into [1, 64].
+    const newWidth = clampDimension(rawW, GRID_WIDTH);
+    const newHeight = clampDimension(rawH, GRID_HEIGHT);
+    const wasClamped = newWidth !== rawW || newHeight !== rawH;
+
+    // Reflect any clamping back into the inputs immediately.
+    widthInput.value = newWidth;
+    heightInput.value = newHeight;
+
+    if (newWidth === GRID_WIDTH && newHeight === GRID_HEIGHT) {
+        if (wasClamped) showToast("Maximum size is 64", 'error');
         return;
     }
-
-    if (newWidth === GRID_WIDTH && newHeight === GRID_HEIGHT) return;
 
     saveState();
 
@@ -472,7 +477,10 @@ function updateGridSize() {
     createGrid();
     renderFrameThumbnails();
 
-    showToast(`Grid: ${GRID_WIDTH}×${GRID_HEIGHT}`, 'success');
+    showToast(
+        wasClamped ? `Clamped to ${GRID_WIDTH}×${GRID_HEIGHT}` : `Grid: ${GRID_WIDTH}×${GRID_HEIGHT}`,
+        wasClamped ? 'error' : 'success'
+    );
 }
 
 function highlightCornerButton() {

@@ -11,8 +11,8 @@
     "url": "git+https://github.com/Technical-1/NeoMatrix-FrameCreator.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Jacob Kanfer",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Technical-1/NeoMatrix-FrameCreator/issues"

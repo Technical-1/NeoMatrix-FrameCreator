@@ -212,3 +212,34 @@ test('keyboard handler does not error when document.activeElement is null', () =
         dom.window.close();
     }
 });
+
+test('generated Rust excludes empty frames so the scroll math never overflows', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        // Frame 1: one pixel
+        buttons(w)[0].click();
+        // Frame 2: empty
+        w.eval('newFrame()');
+        // Frame 3: one pixel (newFrame moved currentFrameIndex to the new frame)
+        w.eval('newFrame()');
+        buttons(w)[3].click();
+
+        // frames = [non-empty, EMPTY, non-empty]
+        // Pass literal 8x8 (the default grid) — GRID_WIDTH/HEIGHT are top-level
+        // `let`s not visible to a fresh eval; generateRustCode still reads the
+        // global `frames` via its own lexical scope.
+        const code = w.eval('generateRustCode(200, 8, 8)');
+
+        const frameConsts = (code.match(/const FRAME_\d+/g) || []).length;
+        assert.strictEqual(frameConsts, 2,
+            'only the two non-empty frames should be emitted as FRAME_ consts');
+        assert.ok(/\[&\[Pixel\]; 2\]/.test(code),
+            'frames_data should be sized for 2 frames, not 3');
+        // The middle empty frame must not leave a zero-length const behind.
+        assert.ok(!/= &\[\];/.test(code),
+            'no empty FRAME_ const should be generated');
+    } finally {
+        dom.window.close();
+    }
+});

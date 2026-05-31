@@ -1099,7 +1099,9 @@ impl NmScroll {
     }
 `;
 
-    frames.forEach((frame, i) => {
+    const renderFrames = nonEmptyFrames(frames);
+
+    renderFrames.forEach((frame, i) => {
         const arrItems = frame.coords
             .map(({ row, col, color }) => {
                 const rgb = parseHexColor(color || ledColor);
@@ -1119,9 +1121,9 @@ impl NmScroll {
         let mut current_x: isize = 0;
         let mut total_width: isize = 0;
 
-        let frames_data: [&[Pixel]; ${frames.length}] = [
+        let frames_data: [&[Pixel]; ${renderFrames.length}] = [
 `;
-    frames.forEach((_, i) => {
+    renderFrames.forEach((_, i) => {
         code += `            Self::FRAME_${i + 1},\n`;
     });
     code += `        ];\n\n`;

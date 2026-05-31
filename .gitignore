@@ -15,3 +15,6 @@
 # Node.js
 node_modules/
 package-lock.json
+
+# Project Hub (investigate skill artifact)
+.project-hub-tasks.json

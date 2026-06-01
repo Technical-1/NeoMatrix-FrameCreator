@@ -153,9 +153,10 @@ function loadFromStorage() {
    ============================================ */
 
 // Capture everything an undo/redo step must be able to restore. gridOrientation
-// is part of this: changing the origin clears the frames, so a snapshot that
-// omitted it would restore the pixels but leave the new origin in place, redrawing
-// the old coords through the wrong mapping (mirrored).
+// is part of this: switching the origin transforms every coord to the new corner,
+// so undo must restore BOTH the pre-switch coords and the origin they were authored
+// under — a snapshot missing the origin would re-render the old coords through the
+// new mapping (mirrored).
 function snapshotState() {
     return {
         frames: JSON.parse(JSON.stringify(frames)),
@@ -408,6 +409,10 @@ function createGrid() {
 
     highlightCornerButton();
     applyFrameToGrid();
+    // Keep the coordinate readout in sync with the repainted grid. Centralising it
+    // here fixes the stale-readout desync for every rebuild path (origin switch,
+    // resize, import), not just the frame-navigation callers.
+    updateCoordinatesDisplay();
     updateFrameIndicator();
 }
 
@@ -510,11 +515,16 @@ function setupPainting() {
 }
 
 function updateOrientation(newOrientation) {
+    if (newOrientation === gridOrientation) return;
+
     saveState();
 
+    // Keep the drawing where it is on screen: transform every pixel from the old
+    // origin to the new one. The same DOM cell stays lit; only the stored/exported
+    // logical coords change to match the new corner. (Transform BEFORE updating
+    // gridOrientation so the old origin is the source mapping.)
+    frames = reorientFrames(frames, GRID_WIDTH, GRID_HEIGHT, gridOrientation, newOrientation);
     gridOrientation = newOrientation;
-    frames.forEach(f => f.coords = []);
-    currentFrameIndex = 0;
 
     updateOrientationButtons();
     createGrid();

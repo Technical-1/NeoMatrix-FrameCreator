@@ -78,6 +78,27 @@
         }));
     }
 
+    // Re-express every frame's coords so the lit cells stay in the SAME on-screen
+    // position when the grid origin changes. A coord's DOM index under the old
+    // origin is recomputed into a logical coord under the new origin; because
+    // rowColToIndex and indexToRowCol are exact inverses, the picture is identical
+    // while the stored/exported addressing follows the new corner. Returns new
+    // frame objects (fresh coords, other fields like name/colour preserved).
+    function reorientFrames(frames, width, height, fromOrigin, toOrigin) {
+        const list = Array.isArray(frames) ? frames : [];
+        if (fromOrigin === toOrigin) {
+            return list.map(f => ({ ...f, coords: [...(f && f.coords || [])] }));
+        }
+        return list.map(f => ({
+            ...f,
+            coords: (Array.isArray(f && f.coords) ? f.coords : []).map(pt => {
+                const domIndex = rowColToIndex(pt.row, pt.col, width, height, fromOrigin);
+                const { row, col } = indexToRowCol(domIndex, width, height, toOrigin);
+                return { ...pt, row, col };
+            })
+        }));
+    }
+
     // --- Colour helpers (shared with later tasks) ---
 
     function isValidHexColor(hex) {
@@ -309,5 +330,5 @@
 
     const VERSION = '1.0.1';
 
-    return { VERSION, sanitizeFrameName, nonEmptyFrames, clampFramesToGrid, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
+    return { VERSION, sanitizeFrameName, nonEmptyFrames, clampFramesToGrid, reorientFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
 });

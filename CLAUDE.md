@@ -121,6 +121,6 @@ Approximate ranges (they drift as the file changes — the section divider comme
 
 ## Known Limitations
 
-- Changing the grid **orientation/origin** clears all frames (by design — remapping pixels across an origin flip is ambiguous). **Resizing** the grid does *not* clear frames: pixels that still fit are kept and only out-of-bounds ones are trimmed (`clampFramesToGrid` in `lib.js`).
+- Changing the grid **orientation/origin** keeps the drawing in place: every pixel is transformed to the new corner (`reorientFrames` in `lib.js`), so the picture is unchanged on screen while the exported `(row,col)` addressing follows the new origin. **Resizing** the grid keeps pixels that still fit and trims only out-of-bounds ones (`clampFramesToGrid` in `lib.js`). Neither action wipes your frames.
 - The animation model is a continuous horizontal **scroll** — frames are concatenated into a megaframe, so there is no per-frame "hold"/flipbook timing (single global speed).
 - Mobile drag-and-drop for frame **reordering** may be less intuitive than desktop.

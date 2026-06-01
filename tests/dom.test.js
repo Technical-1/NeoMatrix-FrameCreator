@@ -68,26 +68,28 @@ function litIndices(w) {
 }
 
 test('orientation redraw lights the exact clicked cell for every origin', () => {
-    const dom = makeApp();
-    const w = dom.window;
-    try {
-        for (const origin of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
-            w.eval(`updateOrientation('${origin}')`); // clears frames + rebuilds grid
+    // A fresh app per origin: switching origin now preserves pixels, so reusing one
+    // app would accumulate state and a re-click on the same cell would toggle it off.
+    for (const origin of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
+        const dom = makeApp();
+        const w = dom.window;
+        try {
+            w.eval(`updateOrientation('${origin}')`); // rebuilds the grid under this origin
             const btns = buttons(w);
             assert.strictEqual(btns.length, 64, `${origin}: expected 8x8 grid`);
 
             const k = 10; // a non-trivial interior index
             btns[k].click(); // stores coord via indexToRowCol, lights button k directly
 
-            // applyFrameToGrid re-derives the DOM index via rowColToIndex — the path
-            // that was scrambled before the fix. After it, only button k must be lit.
+            // applyFrameToGrid re-derives the DOM index via rowColToIndex. After it,
+            // only button k must be lit.
             w.eval('applyFrameToGrid()');
 
             assert.deepStrictEqual(litIndices(w), [k],
                 `${origin}: redraw should light exactly the clicked cell`);
+        } finally {
+            dom.window.close();
         }
-    } finally {
-        dom.window.close();
     }
 });
 
@@ -213,29 +215,30 @@ test('keyboard handler does not error when document.activeElement is null', () =
     }
 });
 
-test('undo restores grid orientation, not just the pixels', () => {
+test('undo restores grid orientation after an origin switch', () => {
     const dom = makeApp();
     const w = dom.window;
     try {
         // Start from a known origin and light an interior, asymmetric cell.
-        w.eval("updateOrientation('top-left')");
-        const k = 10; // domRow 1, domCol 2 on an 8-wide grid — moves under a flip
+        w.eval("updateOrientation('top-left')"); // no-op (already default); keeps k stable
+        const k = 10; // domRow 1, domCol 2 on an 8-wide grid
         buttons(w)[k].click();
         assert.deepStrictEqual(litIndices(w), [k], 'precondition: cell k is lit under top-left');
 
-        // Changing origin clears every frame; the pre-change snapshot still holds
-        // the coord authored under top-left.
+        // Switching origin now KEEPS the pixel on the same on-screen cell (coords are
+        // transformed to the new corner instead of cleared).
         w.eval("updateOrientation('top-right')");
-        assert.strictEqual(litIndices(w).length, 0, 'origin change clears the frame');
+        assert.deepStrictEqual(litIndices(w), [k], 'origin switch keeps the pixel in place');
 
-        // Undo must bring back BOTH the pixel and the origin it was drawn under,
-        // otherwise the restored coord renders through the wrong origin (mirrored).
+        // Undo must restore BOTH the pre-switch coords and the origin they were
+        // authored under, otherwise the restored coord renders through the wrong
+        // mapping (mirrored).
         w.document.dispatchEvent(new w.KeyboardEvent('keydown', {
             key: 'z', ctrlKey: true, bubbles: true, cancelable: true
         }));
 
         assert.deepStrictEqual(litIndices(w), [k],
-            'after undo the pixel returns to the exact clicked cell');
+            'after undo the pixel is still on the exact clicked cell');
         const active = w.document.querySelector('.origin-btn.active');
         assert.strictEqual(active && active.getAttribute('data-orientation'), 'top-left',
             'after undo the origin selector returns to top-left');
@@ -352,6 +355,27 @@ test('resizing keeps in-bounds pixels and trims the rest', () => {
         assert.strictEqual(buttons(w).length, 16, 'grid is now 4x4');
         assert.deepStrictEqual(litIndices(w), [0],
             'the in-bounds pixel survives the resize; the out-of-bounds one is trimmed');
+    } finally {
+        dom.window.close();
+    }
+});
+
+test('switching origin keeps the drawing and refreshes the coordinate readout', () => {
+    const dom = makeApp();
+    const w = dom.window;
+    try {
+        buttons(w)[10].click(); // DOM 10 -> (1,2) under the default top-left origin
+        const readout = () => w.document.getElementById('clicked-buttons').textContent;
+        assert.strictEqual(readout(), '(1,2)', 'readout shows the drawn coordinate');
+
+        w.eval("updateOrientation('bottom-right')");
+
+        // The square stays put on screen (kept in place) ...
+        assert.deepStrictEqual(litIndices(w), [10], 'pixel survives the origin switch in place');
+        // ... and the readout is refreshed to the new logical coord — not the stale
+        // (1,2) and not the empty placeholder (this was the reported desync).
+        assert.strictEqual(readout(), '(6,5)',
+            'readout reflects the transformed coord, not stale text');
     } finally {
         dom.window.close();
     }

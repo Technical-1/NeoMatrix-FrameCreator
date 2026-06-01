@@ -23,3 +23,8 @@ test('handles missing/undefined search safely', () => {
     assert.strictEqual(shouldRedirectHome('1', undefined), true);
     assert.strictEqual(shouldRedirectHome('1', null), true);
 });
+
+test('an unrelated param containing "home" does not suppress the redirect', () => {
+    assert.strictEqual(shouldRedirectHome('1', '?homepage=1'), true);
+    assert.strictEqual(shouldRedirectHome('1', '?nothome=1'), true);
+});

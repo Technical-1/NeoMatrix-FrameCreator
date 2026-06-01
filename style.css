@@ -1334,3 +1334,158 @@ input[type="color"]:focus-visible {
         box-shadow: none !important;
     }
 }
+
+/* ============================================
+   Home / About landing page
+   ============================================ */
+
+.home-body {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 20% 0%, rgba(0, 240, 255, 0.08), transparent 40%),
+        radial-gradient(circle at 80% 100%, rgba(255, 0, 170, 0.08), transparent 40%),
+        var(--bg-primary);
+}
+
+.home {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-lg);
+}
+
+.home-hero {
+    text-align: center;
+    padding: var(--space-2xl) 0 var(--space-xl);
+}
+
+.home-grid-motif {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--cell-gap);
+    width: 132px;
+    margin: 0 auto var(--space-lg);
+}
+.home-grid-motif span {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: var(--cell-off);
+    border: 1px solid var(--cell-off-border);
+    animation: home-pulse 2.4s ease-in-out infinite;
+}
+.home-grid-motif span:nth-child(3n)   { animation-delay: 0.2s;  background: var(--cell-off); }
+.home-grid-motif span:nth-child(4n+1) { animation-delay: 0.6s; }
+.home-grid-motif span:nth-child(2n)   { animation-delay: 1s; }
+@keyframes home-pulse {
+    0%, 100% { background: var(--cell-off); box-shadow: none; }
+    50%      { background: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan-glow); }
+}
+
+.home-logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 3.25rem);
+    color: var(--neon-cyan);
+    text-shadow: 0 0 18px var(--neon-cyan-glow);
+    margin: 0 0 var(--space-md);
+    line-height: 1.1;
+}
+.home-logo span { color: var(--text-primary); text-shadow: none; }
+
+.home-tagline {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    max-width: 36rem;
+    margin: 0 auto var(--space-xl);
+    line-height: 1.6;
+}
+
+.home-launch {
+    display: inline-block;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--bg-primary);
+    background: var(--neon-cyan);
+    padding: var(--space-md) var(--space-xl);
+    border-radius: 8px;
+    box-shadow: 0 0 24px var(--neon-cyan-glow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.home-launch:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 36px var(--neon-cyan-glow);
+}
+.home-launch:focus-visible {
+    outline: 2px solid var(--neon-magenta);
+    outline-offset: 3px;
+}
+.home-launch-secondary {
+    background: transparent;
+    color: var(--neon-cyan);
+    border: 1px solid var(--neon-cyan-dim);
+    box-shadow: none;
+}
+.home-launch-secondary:hover { box-shadow: 0 0 20px var(--neon-cyan-glow); }
+
+.home-story, .home-features {
+    margin-top: var(--space-2xl);
+}
+.home-story h2, .home-features h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--neon-magenta);
+    font-size: 1.4rem;
+    margin-bottom: var(--space-md);
+}
+.home-story p {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    line-height: 1.75;
+    margin-bottom: var(--space-md);
+}
+.home-story code, .home-feature code {
+    color: var(--neon-green);
+    background: var(--bg-surface);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+}
+
+.home-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-md);
+}
+.home-feature {
+    background: var(--bg-surface);
+    border: 1px solid var(--cell-off-border);
+    border-radius: 10px;
+    padding: var(--space-lg);
+}
+.home-feature h3 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--neon-cyan);
+    font-size: 1rem;
+    margin-bottom: var(--space-sm);
+}
+.home-feature p {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.home-footer {
+    text-align: center;
+    margin-top: var(--space-2xl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--cell-off-border);
+}
+.home-footer p {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    margin-top: var(--space-lg);
+}
+.home-footer a { color: var(--neon-cyan); }
+
+@media (prefers-reduced-motion: reduce) {
+    .home-grid-motif span { animation: none; }
+}

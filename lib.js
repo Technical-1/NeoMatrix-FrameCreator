@@ -328,7 +328,14 @@
         return { gridWidth: width, gridHeight: height, orientation, ledColor, animationSpeed, frames };
     }
 
+    // Returns true when a visitor who has already seen the home page should be
+    // sent straight to the editor. `?home` anywhere in the query string forces
+    // the home page to stay (lets the story be revisited on demand).
+    function shouldRedirectHome(hasVisited, search) {
+        return Boolean(hasVisited) && !String(search || '').includes('home');
+    }
+
     const VERSION = '1.0.1';
 
-    return { VERSION, sanitizeFrameName, nonEmptyFrames, clampFramesToGrid, reorientFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette };
+    return { VERSION, sanitizeFrameName, nonEmptyFrames, clampFramesToGrid, reorientFrames, indexToRowCol, rowColToIndex, isValidHexColor, normalizeColor, parseHexColor, resolveSpeedInput, planGifExport, clampDimension, validateImportedData, gifLzwEncode, buildGifPalette, shouldRedirectHome };
 });

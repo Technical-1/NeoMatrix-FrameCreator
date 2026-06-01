@@ -42,6 +42,9 @@ A 50-step undo/redo stack (Ctrl+Z/Ctrl+Y) provides full editing history. All sta
 ### Visual Feedback
 Clicked cells light up in their chosen color with a neon glow effect, the origin corner is marked with a dashed magenta border and dot, and coordinates display in real-time below the grid.
 
+### Landing Page With First-Visit Story
+The root URL opens a short about page that explains where the tool came from — a University of Florida senior design project whose Rust-programmed microprocessor detected which of four directions it was being leaned, where I wanted LED-matrix animations without hand-writing pixel coordinates. First-time visitors read the story and click **Launch editor →**; returning visitors are redirected straight into the editor, and the story stays reachable from an **About** link.
+
 ## Technical Highlights
 
 ### Orientation-agnostic coordinate system
@@ -57,9 +60,18 @@ Each cell carries a `--pixel-color` CSS variable set inline, which the styleshee
 `generateRustCode()` emits a complete module — `NmScroll` struct, `next()` scrolling loop, `delay_ms()` helper, and per-pixel `(usize, usize, u8, u8, u8)` frame data — usable as a drop-in `src/` file with the `smart_leds` crate. Bounding-box logic in the generator avoids emitting empty columns, which keeps scroll timing predictable on hardware. The output matches the interface used in the UF CEN4907C course project, so a student can go from grid clicks to working firmware without rewriting any glue code.
 
 ### Testable pure-logic split in a no-build app
-A zero-build, browser-only app is normally hard to test because every function reaches for the DOM. I pushed the non-trivial logic into `lib.js` — coordinate geometry, import validation/clamping, GIF palette/LZW encoding, megaframe layout, and the pixel-preserving reorient/resize transforms — with no DOM dependency. It attaches to `window` via a plain `<script>` tag in the browser and is `require()`-d directly by a `node:test` suite (74 tests across 12 files), so the gnarly edge cases get unit coverage without spinning up a browser: every orientation round-trips back to itself, palettes overflowing past 256 colors fall back to nearest-color mapping, malformed autosave data is clamped instead of crashing, and imported coordinates outside the grid are trimmed. DOM handlers are covered separately by jsdom integration tests. The shipped app still downloads zero dependencies — `jsdom` and `canvas` are test-time only.
+A zero-build, browser-only app is normally hard to test because every function reaches for the DOM. I pushed the non-trivial logic into `lib.js` — coordinate geometry, import validation/clamping, GIF palette/LZW encoding, megaframe layout, and the pixel-preserving reorient/resize transforms — with no DOM dependency. It attaches to `window` via a plain `<script>` tag in the browser and is `require()`-d directly by a `node:test` suite (82 tests across 14 files), so the gnarly edge cases get unit coverage without spinning up a browser: every orientation round-trips back to itself, palettes overflowing past 256 colors fall back to nearest-color mapping, malformed autosave data is clamped instead of crashing, and imported coordinates outside the grid are trimmed. DOM handlers are covered separately by jsdom integration tests. The shipped app still downloads zero dependencies — `jsdom` and `canvas` are test-time only.
+
+### First-visit redirect as a tested pure function
+The landing page must send returning visitors straight to the editor without a router, a server, or a flash of the wrong page. The whole decision is one DOM-free function in `lib.js` — `shouldRedirectHome(hasVisited, search)` — so the navigation rule is unit-tested directly (first visit, returning visitor, the `?home` revisit bypass, and `null`/`undefined` safety) instead of living untestable inside an inline `<script>`. It runs from a `<head>` script before the body paints, so the redirect (`location.replace`) happens with no story flicker, and the bypass uses `URLSearchParams.has('home')` rather than a substring match so an unrelated `?homepage=1` can't suppress it. The "have you been here" signal is a single `neomatrix-visited` localStorage flag, read and written inside `try/catch` so a blocked store just shows the story.
 
 ## Engineering Decisions
+
+### Landing page split from the editor
+- **Constraint**: The project has a story worth telling (its senior-design origin), but returning users just want the tool — and the site is static, on GitHub Pages, with no router or backend.
+- **Options**: One page with a dismissible overlay, client-side hash routing, or two real pages with a redirect.
+- **Choice**: Make the story the root (`index.html`) and move the editor to `app.html`, with a first-visit-only redirect backed by the pure `shouldRedirectHome` helper.
+- **Why**: The story page becomes the canonical, shareable URL (good for a portfolio piece) while a one-time `localStorage` flag keeps it out of the way for regulars. Putting the decision in a pure function made it testable; a `<head>`-time redirect kept it flicker-free; relative links keep it working under the project subpath.
 
 ### No frontend framework
 - **Constraint**: The tool is for engineering students who may not have Node.js set up, and it has to keep working on GitHub Pages with zero maintenance.
@@ -122,3 +134,6 @@ A zero-build, browser-only app is normally hard to test because every function r
 
 ### Q: Is there mobile support?
 **A**: The tool works on mobile browsers but the experience is suboptimal. The grid cells are sized for mouse interaction. Touch targets are technically usable but cramped on phone screens. A tablet works reasonably well.
+
+### Q: Why does the site show an about page before the editor, and how do I skip it?
+**A**: The root URL is a short landing page about the project's origin; the editor itself is at `app.html`. You only see the story on your first visit — clicking **Launch editor →** records a `neomatrix-visited` flag in localStorage, and every visit after that redirects you straight into the editor. The redirect runs before the page renders, so there's no flash. If you ever want to read the story again, the editor header has an **About** link (`index.html?home=1`); the `home` parameter tells the page to stay put instead of redirecting.

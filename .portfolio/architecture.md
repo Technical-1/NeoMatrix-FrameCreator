@@ -5,6 +5,7 @@
 ```mermaid
 flowchart TB
     subgraph Browser["Browser Environment"]
+        Landing["index.html<br/>(Landing / About page)"]
         HTML["app.html<br/>(Editor UI Structure)"]
         CSS["style.css<br/>(Styling/Layout)"]
         JS["script.js<br/>(DOM/UI Logic)"]
@@ -66,6 +67,8 @@ flowchart TB
     LIB --> CoordSystem
     LIB --> Unit
     JS --> Integration
+    Landing -.->|"returning visitor → redirect"| HTML
+    LIB --> Landing
 
     UserInterface --> CoreLogic
     CoreLogic --> CoordSystem
@@ -132,7 +135,13 @@ The scrolling preview uses a "megaframe" approach where all frames are concatena
 
 A zero-build, browser-only app is hard to test if every function touches the DOM. I split the non-trivial logic — coordinate geometry, import validation/clamping, GIF palette and LZW encoding, megaframe layout, and the pixel-preserving reorient/resize transforms — into `lib.js`, which has **no DOM dependency**. It attaches to `window` in the browser via a `<script>` tag and is `require()`-d directly by the Node test suite. The DOM/UI glue stays in `script.js`.
 
-This lets the geometry be exhaustively round-trip tested (every orientation maps back to itself), and the GIF/import edge cases (palette overflow past 256 colors, malformed autosave, out-of-bounds imported coordinates) get unit coverage without a browser. The suite (`node:test`, run via `npm test`) is 74 tests across 12 files: pure-logic units plus jsdom integration tests that exercise the real DOM handlers. Test-only dev dependencies are `jsdom` and `canvas`; the shipped app still has zero runtime dependencies.
+This lets the geometry be exhaustively round-trip tested (every orientation maps back to itself), and the GIF/import edge cases (palette overflow past 256 colors, malformed autosave, out-of-bounds imported coordinates) get unit coverage without a browser. The suite (`node:test`, run via `npm test`) is 82 tests across 14 files: pure-logic units plus jsdom integration tests that exercise the real DOM handlers. Test-only dev dependencies are `jsdom` and `canvas`; the shipped app still has zero runtime dependencies.
+
+#### 7. Two-Page Split: Landing Page With a No-Flash First-Visit Redirect
+
+The editor lives at `app.html`; the root (`index.html`) is a short about/landing page that tells the project's origin story before handing off to the tool. The requirement was that *first-time* visitors see the story while *returning* visitors go straight to work — with no router, no server, and no flash of the wrong page.
+
+The redirect decision is a pure function, `shouldRedirectHome(hasVisited, search)`, in `lib.js`. Keeping it DOM-free means the navigation rule is unit-tested in isolation (first visit, returning visitor, the `?home` bypass, and `null`/`undefined`-safety) rather than buried in an inline `<script>`. The bypass uses `URLSearchParams.has('home')` rather than a naive `includes('home')` substring check, so an unrelated query like `?homepage=1` can't accidentally suppress the redirect. The landing page calls the helper from a script in `<head>`, *before* the body paints, so a returning visitor is `location.replace`-d to the editor with no story flicker. A deliberate `index.html?home=1` link (in the editor header) sets the `home` param so the story can always be revisited. The "have they visited" signal is a single `neomatrix-visited` localStorage flag the editor sets on load; both the read and write are wrapped in `try/catch` so a blocked localStorage degrades to simply showing the story. All asset and cross-page links are relative, so the split works unchanged under the `/NeoMatrix-FrameCreator/` GitHub Pages subpath.
 
 ### Data Flow
 

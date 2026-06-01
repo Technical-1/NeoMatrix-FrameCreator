@@ -14,7 +14,7 @@ I deliberately chose not to use any frontend framework (React, Vue, Angular, etc
 
 1. **Zero Build Complexity**: No webpack, no Babel, no npm scripts. Users can fork the repo and immediately start modifying.
 
-2. **Instant Deployment**: The entire application is three files. Drop them on any web server or use GitHub Pages.
+2. **Instant Deployment**: The entire application is a handful of static files (two HTML pages, one stylesheet, two scripts). Drop them on any web server or use GitHub Pages.
 
 3. **Appropriate Scope**: This is a focused, single-purpose tool. A framework would add overhead without proportional benefit.
 
@@ -65,7 +65,7 @@ Each pixel stores its own color, enabling multi-color designs within a single fr
 
 ## Architecture: Pure-Logic Library + DOM Layer
 
-The non-trivial logic is split out of the UI into `lib.js`, a **DOM-free** module: coordinate geometry, import validation/clamping, GIF palette and LZW encoding, megaframe layout, GIF export sizing, and the pixel-preserving reorient/resize transforms. It attaches to `window` in the browser and is `require()`-d directly by the Node test suite. The DOM/UI glue lives in `script.js`. This split is what makes a zero-build, browser-only app genuinely testable.
+The non-trivial logic is split out of the UI into `lib.js`, a **DOM-free** module: coordinate geometry, import validation/clamping, GIF palette and LZW encoding, megaframe layout, GIF export sizing, the pixel-preserving reorient/resize transforms, and the first-visit landing-page redirect decision (`shouldRedirectHome`). It attaches to `window` in the browser and is `require()`-d directly by the Node test suite. The DOM/UI glue lives in `script.js`. This split is what makes a zero-build, browser-only app genuinely testable.
 
 ## Testing
 
@@ -75,7 +75,7 @@ The non-trivial logic is split out of the UI into `lib.js`, a **DOM-free** modul
 | `jsdom` | ^29.1.1 (dev) | Headless DOM for integration tests of real handlers |
 | `canvas` | ^3.2.1 (dev) | Backs the Canvas 2D API in GIF render tests + asset gen |
 
-The suite is **74 tests across 12 files**: pure-logic units (geometry round-trips, palette overflow past 256 colors, malformed-autosave clamping, out-of-bounds import trimming, reorient/resize) plus jsdom integration tests that drive the actual DOM event handlers.
+The suite is **82 tests across 14 files**: pure-logic units (geometry round-trips, palette overflow past 256 colors, malformed-autosave clamping, out-of-bounds import trimming, reorient/resize, first-visit redirect rule) plus jsdom integration tests that drive the actual DOM event handlers.
 
 ## Key Dependencies
 

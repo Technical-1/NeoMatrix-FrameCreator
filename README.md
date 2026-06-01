@@ -37,7 +37,7 @@ A web-based visual editor for designing LED matrix animations for WS2812 (NeoPix
 ## How to Use
 
 1. **Open the Tool**
-   Go to [**NeoMatrix Frame Creator**](https://technical-1.github.io/NeoMatrix-FrameCreator/)
+   Go to [**NeoMatrix Frame Creator**](https://technical-1.github.io/NeoMatrix-FrameCreator/). First-time visitors land on a short about page explaining the project's origin, then click **Launch editor →**; returning visitors are sent straight to the editor.
 
 2. **Set Up Your Grid**
    - Set **Width** and **Height** for your matrix dimensions
@@ -156,7 +156,7 @@ Non-DOM logic lives in `lib.js` and is unit-tested directly; DOM behaviour is co
 
 ```bash
 npm install   # installs jsdom + canvas
-npm test      # node:test suite — 74 tests across 12 files
+npm test      # node:test suite — 82 tests across 14 files
 ```
 
 New pure logic should go in `lib.js` with a matching test rather than inline in `script.js`.

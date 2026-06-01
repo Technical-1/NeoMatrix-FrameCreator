@@ -143,8 +143,9 @@ The shipped app has **zero runtime dependencies** — vanilla HTML/CSS/JS, no bu
 git clone https://github.com/Technical-1/NeoMatrix-FrameCreator.git
 cd NeoMatrix-FrameCreator
 
-# Open in browser
-open index.html
+# Open the landing page in a browser, or app.html to go straight to the editor
+open index.html   # landing page
+open app.html     # editor directly
 # Or use a local server
 python -m http.server 8000
 ```
@@ -163,7 +164,8 @@ New pure logic should go in `lib.js` with a matching test rather than inline in 
 ### Project Structure
 
 ```
-├── index.html            # Main HTML with SEO meta tags
+├── index.html            # Home/about landing page (redirects returning visitors to the editor)
+├── app.html              # The editor (formerly index.html)
 ├── style.css             # Dark neon theme (~1340 lines)
 ├── script.js             # DOM/UI application logic (~1660 lines)
 ├── lib.js                # DOM-free pure logic (geometry, GIF encoding, validation)

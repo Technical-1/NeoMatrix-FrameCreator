@@ -12,7 +12,7 @@ const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(ROOT, 'app.html'), 'utf8');
 const libSrc = fs.readFileSync(path.join(ROOT, 'lib.js'), 'utf8');
 const appSrc = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
 

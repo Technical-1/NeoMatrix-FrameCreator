@@ -126,4 +126,4 @@ I did not include polyfills for older browsers. The target audience (engineering
 | Git | Version control |
 | GitHub | Repository hosting and deployment |
 
-Editing the app itself needs no toolchain — open `index.html` and refresh. Node is only required to run the test suite (`npm install` once for the `jsdom`/`canvas` dev dependencies, then `npm test`), so contributors can iterate on the UI without any setup friction.
+Editing the app itself needs no toolchain — open `app.html` (the editor) or `index.html` (the landing page) and refresh. Node is only required to run the test suite (`npm install` once for the `jsdom`/`canvas` dev dependencies, then `npm test`), so contributors can iterate on the UI without any setup friction.

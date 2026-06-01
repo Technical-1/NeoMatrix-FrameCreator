@@ -7,7 +7,13 @@ flowchart TB
     subgraph Browser["Browser Environment"]
         HTML["index.html<br/>(UI Structure)"]
         CSS["style.css<br/>(Styling/Layout)"]
-        JS["script.js<br/>(Application Logic)"]
+        JS["script.js<br/>(DOM/UI Logic)"]
+        LIB["lib.js<br/>(Pure Logic — DOM-free)"]
+    end
+
+    subgraph Tests["Test Suite (node:test)"]
+        Unit["Unit tests<br/>(lib.js logic)"]
+        Integration["jsdom integration<br/>(DOM handlers)"]
     end
 
     subgraph UserInterface["User Interface Layer"]
@@ -56,6 +62,10 @@ flowchart TB
     JS --> Animation
     JS --> Export
     JS --> StateManagement
+    JS --> LIB
+    LIB --> CoordSystem
+    LIB --> Unit
+    JS --> Integration
 
     UserInterface --> CoreLogic
     CoreLogic --> CoordSystem
@@ -118,10 +128,16 @@ This reduces the barrier from "I have coordinate data" to "I have working code."
 
 The scrolling preview uses a "megaframe" approach where all frames are concatenated horizontally. This mirrors how text/graphics actually scroll across physical LED matrices, giving users accurate visual feedback before deploying to hardware.
 
+#### 6. Pure-Logic Library Split for Testability
+
+A zero-build, browser-only app is hard to test if every function touches the DOM. I split the non-trivial logic — coordinate geometry, import validation/clamping, GIF palette and LZW encoding, megaframe layout, and the pixel-preserving reorient/resize transforms — into `lib.js`, which has **no DOM dependency**. It attaches to `window` in the browser via a `<script>` tag and is `require()`-d directly by the Node test suite. The DOM/UI glue stays in `script.js`.
+
+This lets the geometry be exhaustively round-trip tested (every orientation maps back to itself), and the GIF/import edge cases (palette overflow past 256 colors, malformed autosave, out-of-bounds imported coordinates) get unit coverage without a browser. The suite (`node:test`, run via `npm test`) is 74 tests across 12 files: pure-logic units plus jsdom integration tests that exercise the real DOM handlers. Test-only dev dependencies are `jsdom` and `canvas`; the shipped app still has zero runtime dependencies.
+
 ### Data Flow
 
-1. **User Input**: Clicks on grid cells toggle coordinates in the active frame (each pixel stores its own color)
-2. **State Snapshot**: `saveState()` pushes a deep copy to the undo stack before each mutation
+1. **User Input**: Click-and-drag paints (or erases) a stroke of cells in the active frame; the first cell in the stroke sets the mode and each cell is touched at most once (each pixel stores its own color)
+2. **State Snapshot**: `saveState()` pushes a deep copy to the undo stack once per stroke, so a drag collapses into a single undo step
 3. **State Update**: The `frames` array is modified directly
 4. **Visual Feedback**: `applyFrameToGrid()` syncs UI with state, applying per-pixel `--pixel-color` CSS custom properties
 5. **Autosave**: State is periodically serialized to localStorage
@@ -129,6 +145,8 @@ The scrolling preview uses a "megaframe" approach where all frames are concatena
 
 ### Limitations
 
-- Grid size changes clear all frames (by design, to avoid coordinate conflicts)
+- The animation model is a single continuous horizontal **scroll** — frames are concatenated into a megaframe, so there is no per-frame "hold"/flipbook timing (one global speed)
 - Mobile drag-and-drop for frame reordering may be less intuitive than desktop
-- GIF export can be slow for very large grids or many frames due to client-side LZW encoding
+- GIF export can be slow for very large grids or many frames due to client-side LZW encoding; `planGifExport()` in `lib.js` shrinks per-cell resolution for large grids and refuses exports whose buffered pixels would exceed a memory budget
+
+> Note: earlier versions cleared all frames on a grid resize. Resizing now preserves pixels that still fit and trims only out-of-bounds ones (`clampFramesToGrid`), and changing the origin/orientation keeps the drawing in place by transforming every pixel to the new corner (`reorientFrames`) — both in `lib.js`.

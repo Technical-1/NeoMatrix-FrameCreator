@@ -11,10 +11,13 @@ NeoMatrix Frame Creator is a browser-based visual editor for designing LED matri
 ## Key Features
 
 ### Dynamic Rectangular Grid
-Users can set any grid size from 1x1 to 64x64 with independent width and height, matching their physical LED matrix dimensions. The grid renders dynamically using CSS Grid, with each cell becoming a clickable button.
+Users can set any grid size from 1x1 to 64x64 with independent width and height, matching their physical LED matrix dimensions. The grid renders dynamically using CSS Grid, with each cell becoming a clickable button. Resizing preserves the pixels that still fit and trims only the out-of-bounds ones, so changing dimensions never wipes a drawing.
+
+### Click-and-Drag Painting
+Click a single cell or drag across many in one stroke (mouse or touch) to paint pixels. The first cell in a stroke sets the mode — *erase* if that cell is already lit in the current color, otherwise *paint* — and each cell is touched at most once per stroke. The whole stroke collapses into a single undo step.
 
 ### Multi-Color Pixel Art
-Each pixel stores its own color. Click a cell with the color picker to set it, click an active pixel with a different color to change it, or click with the same color to toggle it off. This enables full multi-color designs within a single frame.
+Each pixel stores its own color. Paint a cell with the color picker to set it, paint an active pixel with a different color to change it, or paint over it with the same color to toggle it off. This enables full multi-color designs within a single frame.
 
 ### Multi-Frame Animation Support
 Create unlimited animation frames and navigate between them. Each frame maintains its own coordinate set independently. Frames can be reordered via drag-and-drop, duplicated, or deleted.
@@ -42,16 +45,19 @@ Clicked cells light up in their chosen color with a neon glow effect, the origin
 ## Technical Highlights
 
 ### Orientation-agnostic coordinate system
-WS2812 matrices can be wired with the origin in any of four corners, and the visual editor must match the user's physical board. The mapping is centralized in `indexToRowCol()` and `rowColToIndex()` in `script.js`, with a single switch over the four orientation modes. Every other module — the click handler, the renderer, the Rust code generator — works in logical (row, col) space, so adding a new wiring layout would mean changing one function rather than every consumer.
+WS2812 matrices can be wired with the origin in any of four corners, and the visual editor must match the user's physical board. The mapping is centralized in `indexToRowCol()` and `rowColToIndex()` in `lib.js`, with a single switch over the four orientation modes. Every other module — the click handler, the renderer, the Rust code generator — works in logical (row, col) space, so adding a new wiring layout would mean changing one function rather than every consumer. Because the geometry is DOM-free, it is exhaustively round-trip tested (every orientation maps back to itself).
 
 ### Custom GIF89a encoder, no library
-GIF export is produced by a hand-written `GifEncoder` class (~190 lines in `script.js`) that emits a complete GIF89a stream: global color table, Netscape Application Extension for looping, LZW compression with variable code sizes, and sub-block framing. Each frame is drawn to an off-screen Canvas 2D context with outer glow, inner glow, and specular highlight passes, then pixels are quantized against a palette built from the colors actually used. Bundling `gif.js` would have added ~30KB and another supply-chain surface; the inline encoder keeps the project at zero runtime dependencies.
+GIF export is produced by a hand-written `GifEncoder` class in `script.js` that emits a complete GIF89a stream: global color table, Netscape Application Extension for looping, LZW compression with variable code sizes, and sub-block framing. The reusable, DOM-free pieces — palette construction with nearest-color mapping capped at 256 entries (`buildGifPalette`), the LZW encoder (`gifLzwEncode`), and export sizing/memory budgeting (`planGifExport`) — live in `lib.js` and are unit-tested. Each frame is drawn to an off-screen Canvas 2D context with outer glow, inner glow, and specular highlight passes, then quantized against the capped palette. Bundling `gif.js` would have added ~30KB and another supply-chain surface; the inline encoder keeps the shipped project at zero runtime dependencies.
 
 ### Per-pixel color via CSS custom properties
 Each cell carries a `--pixel-color` CSS variable set inline, which the stylesheet reads through `color-mix()` to produce the neon glow without per-pixel JavaScript animation. Toggling a class and updating a custom property is one of the cheapest things the browser style engine does, so animation stays smooth on 64×64 grids without any canvas fallback. The frame data structure stores `{ row, col, color }` per pixel, and `applyFrameToGrid()` syncs DOM state from this array.
 
 ### Rust code generation that actually compiles
 `generateRustCode()` emits a complete module — `NmScroll` struct, `next()` scrolling loop, `delay_ms()` helper, and per-pixel `(usize, usize, u8, u8, u8)` frame data — usable as a drop-in `src/` file with the `smart_leds` crate. Bounding-box logic in the generator avoids emitting empty columns, which keeps scroll timing predictable on hardware. The output matches the interface used in the UF CEN4907C course project, so a student can go from grid clicks to working firmware without rewriting any glue code.
+
+### Testable pure-logic split in a no-build app
+A zero-build, browser-only app is normally hard to test because every function reaches for the DOM. I pushed the non-trivial logic into `lib.js` — coordinate geometry, import validation/clamping, GIF palette/LZW encoding, megaframe layout, and the pixel-preserving reorient/resize transforms — with no DOM dependency. It attaches to `window` via a plain `<script>` tag in the browser and is `require()`-d directly by a `node:test` suite (74 tests across 12 files), so the gnarly edge cases get unit coverage without spinning up a browser: every orientation round-trips back to itself, palettes overflowing past 256 colors fall back to nearest-color mapping, malformed autosave data is clamped instead of crashing, and imported coordinates outside the grid are trimmed. DOM handlers are covered separately by jsdom integration tests. The shipped app still downloads zero dependencies — `jsdom` and `canvas` are test-time only.
 
 ## Engineering Decisions
 
@@ -97,13 +103,19 @@ Each cell carries a `--pixel-color` CSS variable set inline, which the styleshee
 **A**: Yes. All state (grid dimensions, orientation, color, frames, and animation speed) is automatically saved to localStorage every 30 seconds and on page unload. When you reopen the tool, your previous session is restored. You can also export to JSON and re-import later for more permanent saves.
 
 ### Q: Can I contribute to this project?
-**A**: Yes. The repository is public on GitHub. Since there's no build system, just fork, edit the HTML/CSS/JS files directly, and submit a pull request. No npm install or toolchain setup required.
+**A**: Yes. The repository is public on GitHub. There's no build system, so you can fork, edit the HTML/CSS/JS files directly, and refresh the browser to see changes. If you touch the logic, run `npm install` once (for the `jsdom`/`canvas` dev dependencies) and `npm test` before submitting a pull request — new pure logic should go in `lib.js` with a matching test.
 
 ### Q: How accurate is the scrolling preview compared to real hardware?
 **A**: The preview shows the same pixels that will light up on hardware, but timing may differ. Browser `setInterval` isn't perfectly precise, and your embedded system's loop timing varies. Use the preview for visual verification, then tune delay values on actual hardware.
 
 ### Q: How does the multi-color system work?
-**A**: The toolbar includes a color picker that lets you select any color. Each pixel stores its own color independently, so you can paint different pixels in different colors within the same frame. When you click a lit pixel with a different color selected, it updates that pixel's color. The generated Rust code includes per-pixel RGB values, and the GIF export renders each pixel in its actual color with glow effects.
+**A**: The toolbar includes a color picker that lets you select any color. Each pixel stores its own color independently, so you can paint different pixels in different colors within the same frame. When you paint over a lit pixel with a different color selected, it updates that pixel's color. The generated Rust code includes per-pixel RGB values, and the GIF export renders each pixel in its actual color with glow effects.
+
+### Q: If I resize the grid, do I lose my drawing?
+**A**: No. Resizing keeps every pixel that still fits inside the new dimensions and trims only the ones that fall outside the bounds. Changing the origin/orientation also keeps the picture in place on screen — every pixel is transformed to the new corner, so the exported `(row, col)` addressing follows the new origin while the image stays put. Both transforms live in `lib.js` and are covered by tests.
+
+### Q: Do I have to click each cell one at a time?
+**A**: No — you can click and drag to paint a whole stroke of cells at once, with mouse or touch. The first cell you touch decides whether the stroke paints or erases, and the entire stroke is a single undo step, so one Ctrl+Z reverts the whole drag.
 
 ### Q: What happens if I set a very large grid size?
 **A**: The tool allows up to 64x64 (4,096 cells). Performance remains acceptable, but the cells become small. For very large matrices, consider using the tool to design smaller sprites and tiling them in code.

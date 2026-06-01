@@ -14,7 +14,8 @@ A web-based visual editor for designing LED matrix animations for WS2812 (NeoPix
 ## Features
 
 ### Core Editing
-- **Dynamic Grid Size** — Support for rectangular grids from 1×1 to 64×64
+- **Dynamic Grid Size** — Support for rectangular grids from 1×1 to 64×64; resizing keeps the pixels that still fit
+- **Click-and-Drag Painting** — Paint or erase across many cells in one mouse/touch stroke, collapsed into a single undo step
 - **Multi-Color Support** — Each pixel can have its own color with live color picker
 - **Multiple Frames** — Create unlimited animation frames with drag-and-drop reordering
 - **Undo/Redo** — 50-step history with Ctrl+Z / Ctrl+Y keyboard shortcuts
@@ -23,7 +24,7 @@ A web-based visual editor for designing LED matrix animations for WS2812 (NeoPix
 ### Animation
 - **Scrolling Preview** — Watch your frames scroll across the grid in real-time
 - **Adjustable Speed** — Control animation speed from 50ms to 2000ms per step
-- **Orientation Modes** — Flip origin corner to match your physical matrix wiring
+- **Orientation Modes** — Flip origin corner to match your physical matrix wiring; the drawing stays in place while the exported addressing follows the new origin
 
 ### Export Options
 - **Rust Code** — Generate ready-to-compile `.rs` files with per-pixel RGB colors and animation speed
@@ -44,8 +45,8 @@ A web-based visual editor for designing LED matrix animations for WS2812 (NeoPix
    - Select a **Color** using the color picker
 
 3. **Create Frames**
-   - Click cells to toggle pixels on/off (click again with same color to turn off)
-   - Click a lit pixel with a different color to change its color
+   - Click or drag across cells to paint pixels; the first cell in a stroke decides whether you're painting or erasing
+   - Click a lit pixel with the same color to turn it off, or with a different color to change it
    - Use **New Frame**, **Duplicate**, and **Delete** to manage frames
    - Drag and drop frame thumbnails to reorder
 
@@ -135,7 +136,7 @@ loop {
 
 ## Development
 
-This is a zero-dependency vanilla JavaScript project. No build step required.
+The shipped app has **zero runtime dependencies** — vanilla HTML/CSS/JS, no build step. Editing is "open and refresh":
 
 ```bash
 # Clone the repository
@@ -148,19 +149,33 @@ open index.html
 python -m http.server 8000
 ```
 
+### Testing
+
+Non-DOM logic lives in `lib.js` and is unit-tested directly; DOM behaviour is covered by jsdom integration tests. The only dev dependencies are `jsdom` and `canvas` (test-time only):
+
+```bash
+npm install   # installs jsdom + canvas
+npm test      # node:test suite — 74 tests across 12 files
+```
+
+New pure logic should go in `lib.js` with a matching test rather than inline in `script.js`.
+
 ### Project Structure
 
 ```
 ├── index.html            # Main HTML with SEO meta tags
 ├── style.css             # Dark neon theme (~1340 lines)
-├── script.js             # All application logic (~1660 lines)
+├── script.js             # DOM/UI application logic (~1660 lines)
+├── lib.js                # DOM-free pure logic (geometry, GIF encoding, validation)
+├── tests/                # node:test unit + jsdom integration tests
 ├── favicon.svg           # SVG favicon
 ├── og-image.png          # Social media preview image (1200×630)
 ├── og-image.svg          # SVG source for OG image
 ├── apple-touch-icon.png  # iOS home screen icon
 ├── generate-pngs.js      # Node.js script for PNG asset generation
 ├── generate-assets.html  # Browser-based asset generator
-├── package.json          # Dev dependency (canvas) for asset gen
+├── package.json          # Dev dependencies (jsdom, canvas) + test script
+├── LICENSE               # MIT
 └── .portfolio/           # Project documentation
 ```
 

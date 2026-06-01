@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NeoMatrix Frame Creator — LED Matrix Animation Designer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO -->
+    <meta name="description" content="The story behind NeoMatrix Frame Creator — a browser tool for designing WS2812 LED matrix animations, born from a University of Florida senior design project.">
+    <meta name="author" content="Technical-1">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0a0a0f">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://technical-1.github.io/NeoMatrix-FrameCreator/">
+    <meta property="og:title" content="NeoMatrix Frame Creator">
+    <meta property="og:description" content="Design LED matrix animations for WS2812 NeoPixel displays — built for UF senior design.">
+    <meta property="og:image" content="https://technical-1.github.io/NeoMatrix-FrameCreator/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="NeoMatrix Frame Creator">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NeoMatrix Frame Creator">
+    <meta name="twitter:description" content="Design LED matrix animations for WS2812 NeoPixel displays — built for UF senior design.">
+    <meta name="twitter:image" content="https://technical-1.github.io/NeoMatrix-FrameCreator/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="canonical" href="https://technical-1.github.io/NeoMatrix-FrameCreator/">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Returning visitors skip the story and go straight to the editor. -->
+    <script src="lib.js"></script>
+    <script>
+        try {
+            if (typeof shouldRedirectHome === 'function' &&
+                shouldRedirectHome(localStorage.getItem('neomatrix-visited'), location.search)) {
+                location.replace('app.html');
+            }
+        } catch (e) { /* storage blocked — just show the story */ }
+    </script>
+</head>
+<body class="home-body">
+    <main class="home">
+        <section class="home-hero">
+            <div class="home-grid-motif" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <h1 class="home-logo">NeoMatrix <span>Frame Creator</span></h1>
+            <p class="home-tagline">Design LED matrix animations for WS2812 NeoPixel displays — paint frames, preview the scroll, and export ready-to-compile Rust.</p>
+            <a class="home-launch" id="launch-editor" href="app.html">Launch editor →</a>
+        </section>
+
+        <section class="home-story">
+            <h2>Why I built this</h2>
+            <p>Built for senior design at the University of Florida (CEN4907C). Our project was a Rust-programmed microprocessor that detected which of four directions it was being leaned. I wanted it to play animations on an LED matrix — and quickly got tired of hand-writing pixel coordinates into Rust arrays.</p>
+            <p>The first version of this tool existed for exactly one reason: so I never had to type a <code>(row, col)</code> by hand again. It grew into a full frame editor with scrolling preview, GIF export, and one-click Rust codegen.</p>
+        </section>
+
+        <section class="home-features">
+            <h2>What it does</h2>
+            <div class="home-feature-grid">
+                <article class="home-feature">
+                    <h3>Paint frames</h3>
+                    <p>Click and drag to light pixels in any color across a grid up to 64×64.</p>
+                </article>
+                <article class="home-feature">
+                    <h3>Preview the scroll</h3>
+                    <p>Chain frames into a continuous horizontal scroll and watch it animate live.</p>
+                </article>
+                <article class="home-feature">
+                    <h3>Export a GIF</h3>
+                    <p>Render the animation to a looping GIF to share or drop in a README.</p>
+                </article>
+                <article class="home-feature">
+                    <h3>Generate Rust</h3>
+                    <p>Emit a ready-to-compile <code>.rs</code> file for the <code>smart_leds</code> crate.</p>
+                </article>
+            </div>
+        </section>
+
+        <footer class="home-footer">
+            <a class="home-launch home-launch-secondary" href="app.html">Open the editor →</a>
+            <p>by Jacob Kanfer · <a href="https://github.com/Technical-1/NeoMatrix-FrameCreator" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </main>
+</body>
+</html>

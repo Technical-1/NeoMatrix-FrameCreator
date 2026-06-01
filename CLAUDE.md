@@ -12,7 +12,7 @@ NeoMatrix Frame Creator is a browser-based visual editor for designing LED matri
 
 **No build system** - The shipped app has zero runtime dependencies (vanilla JS loaded via `<script>`). To develop:
 
-1. Open `index.html` in a browser
+1. Open `index.html` for the landing page, or `app.html` to go straight to the editor
 2. Edit HTML/CSS/JS files directly
 3. Refresh browser to see changes
 
@@ -23,9 +23,10 @@ NeoMatrix Frame Creator is a browser-based visual editor for designing LED matri
 ## Architecture
 
 Client-side SPA with a pure-logic library and a Node test suite:
-- `index.html` - Semantic HTML5 structure with ARIA accessibility
+- `index.html` - Home/about landing page (origin story); on load redirects returning visitors to the editor (first-visit-only) via `shouldRedirectHome` (`lib.js`)
+- `app.html` - The editor: semantic HTML5 structure with ARIA accessibility (formerly `index.html`)
 - `style.css` - CSS custom properties design system, responsive layout, dark neon theme (~1340 lines)
-- `lib.js` - DOM-free pure logic (coordinate geometry, colour helpers, GIF LZW/palette encoding, import validation, GIF export sizing). Attaches to `window` in the browser and is `require()`-d by tests (~310 lines)
+- `lib.js` - DOM-free pure logic (coordinate geometry, colour helpers, GIF LZW/palette encoding, import validation, GIF export sizing, landing-page redirect logic). Attaches to `window` in the browser and is `require()`-d by tests (~310 lines)
 - `script.js` - All DOM/UI application logic (~1645 lines)
 - `tests/` - `node:test` unit tests plus jsdom DOM-integration tests, run with `npm test`
 

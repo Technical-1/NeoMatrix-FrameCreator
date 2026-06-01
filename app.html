@@ -14,7 +14,7 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://technical-1.github.io/NeoMatrix-FrameCreator/">
+    <meta property="og:url" content="https://technical-1.github.io/NeoMatrix-FrameCreator/app.html">
     <meta property="og:title" content="NeoMatrix Frame Creator">
     <meta property="og:description" content="Design stunning LED matrix animations for WS2812 NeoPixel displays. Create pixel art, preview animations, export to Rust or GIF.">
     <meta property="og:image" content="https://technical-1.github.io/NeoMatrix-FrameCreator/og-image.png">
@@ -24,7 +24,7 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://technical-1.github.io/NeoMatrix-FrameCreator/">
+    <meta name="twitter:url" content="https://technical-1.github.io/NeoMatrix-FrameCreator/app.html">
     <meta name="twitter:title" content="NeoMatrix Frame Creator">
     <meta name="twitter:description" content="Design stunning LED matrix animations for WS2812 NeoPixel displays. Create pixel art, preview animations, export to Rust or GIF.">
     <meta name="twitter:image" content="https://technical-1.github.io/NeoMatrix-FrameCreator/og-image.png">
@@ -41,7 +41,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://technical-1.github.io/NeoMatrix-FrameCreator/">
+    <link rel="canonical" href="https://technical-1.github.io/NeoMatrix-FrameCreator/app.html">
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -55,6 +55,12 @@
                 NeoMatrix
             </h1>
             <div class="header-actions">
+                <a class="btn btn-icon home-link" href="index.html?home=1" aria-label="About this project" title="About">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                </a>
                 <!-- Undo/Redo buttons -->
                 <button class="btn btn-icon" id="undo-btn" onclick="undo()" aria-label="Undo" title="Undo (Ctrl+Z)" disabled>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -357,5 +363,10 @@
 
     <script src="lib.js"></script>
     <script src="script.js"></script>
+    <script>
+        // Anyone who reaches the editor has seen the intro; mark them so the
+        // home page redirects them straight here next time.
+        try { localStorage.setItem('neomatrix-visited', '1'); } catch (e) { /* storage blocked */ }
+    </script>
 </body>
 </html>

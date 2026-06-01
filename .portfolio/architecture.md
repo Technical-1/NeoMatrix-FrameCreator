@@ -5,7 +5,7 @@
 ```mermaid
 flowchart TB
     subgraph Browser["Browser Environment"]
-        HTML["index.html<br/>(UI Structure)"]
+        HTML["app.html<br/>(Editor UI Structure)"]
         CSS["style.css<br/>(Styling/Layout)"]
         JS["script.js<br/>(DOM/UI Logic)"]
         LIB["lib.js<br/>(Pure Logic — DOM-free)"]
